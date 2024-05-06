@@ -84,7 +84,14 @@ async fn read_log(input: Json<Query>, state: Data<ServerActor>) -> Result<impl R
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let Ok(repo) = repository::Warehouse::new(repository::DatabaseStorage::Ram).await else {
+    let Ok(mut repo) = repository::Warehouse::new(repository::DatabaseStorage::Ram).await else {
+        return Err(std::io::Error::new::<String>(
+            std::io::ErrorKind::NotConnected,
+            "repository is not responding".to_string(),
+        ));
+    };
+
+    let Ok(()) = repo.migrate().await else {
         return Err(std::io::Error::new::<String>(
             std::io::ErrorKind::NotConnected,
             "repository is not responding".to_string(),
