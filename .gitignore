@@ -1,0 +1,7 @@
+/target
+
+# schema files
+*.schema
+
+# db files
+*.db

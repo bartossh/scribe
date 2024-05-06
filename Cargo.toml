@@ -1,0 +1,19 @@
+[package]
+name = "scribe"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+strip = "debuginfo"
+
+[profile.test]
+opt-level = 3
+
+[dependencies]
+scanf = "1.2.1"
+sqlx = { version = "0.7.4", features = [
+    "sqlite",
+    "time",
+    "runtime-tokio-native-tls",
+] }
+tokio = { version = "1.37.0", features = ["test-util", "tokio-macros", "full"] }
