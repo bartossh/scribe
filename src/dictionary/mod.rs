@@ -1,9 +1,22 @@
 use scanf::sscanf;
+use sqlx::Error as ErrorSql;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::BufReader;
-use std::io::{LineWriter, Result, Write};
+use std::io::{LineWriter, Result as ResultStd, Write};
+
+/// Stores Serializer in Self.
+///
+pub trait SerializerSaver {
+    async fn save(&self, s: &Serializer) -> Result<(), ErrorSql>;
+}
+
+/// Reads stored Serializer in Self.
+///
+pub trait SerializerReader {
+    async fn read(&self) -> Result<Serializer, ErrorSql>;
+}
 
 /// Serializer serialize the log in to the binary format.
 ///
@@ -24,9 +37,22 @@ impl Serializer {
         }
     }
 
-    /// Serializes the value in to the numeric representation of data.
+    /// Sets a new words to numbers map from given dataset.
     ///
     #[inline(always)]
+    pub fn set_map_from(&mut self, m: HashMap<String, u32>) {
+        self.last_available_number = 0;
+        self.words_to_numbers = m;
+        self.words_to_numbers.iter().for_each(|(_, n)| {
+            if *n > self.last_available_number {
+                self.last_available_number = *n
+            }
+        });
+    }
+
+    /// Serializes the value in to the numeric representation of data.
+    ///
+    #[inline]
     pub fn serialize(&mut self, log: &str) -> Vec<u32> {
         log.split_whitespace()
             .into_iter()
@@ -42,10 +68,17 @@ impl Serializer {
             .collect()
     }
 
+    /// Allows to iterate over inner words to num collection.
+    ///
+    #[inline(always)]
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &u32)> {
+        self.words_to_numbers.iter()
+    }
+
     /// Saves schema to a file.
     ///
     #[inline]
-    pub fn save_schema_to_file(&self, path: &str) -> Result<()> {
+    pub fn save_schema_to_file(&self, path: &str) -> ResultStd<()> {
         let file = File::create(path)?;
         let mut file = LineWriter::new(file);
         for (w, n) in self.words_to_numbers.iter() {
@@ -59,7 +92,7 @@ impl Serializer {
     /// Reads schema from a file.
     ///
     #[inline]
-    pub fn read_schema_from_file(path: &str) -> Result<Self> {
+    pub fn read_schema_from_file(path: &str) -> ResultStd<Self> {
         let mut serializer = Self::new();
         let mut file = File::open(path)?;
         let mut reader = BufReader::new(file);
@@ -78,7 +111,7 @@ impl Serializer {
     }
 
     #[inline(always)]
-    pub fn save_log(&self, log: &[u32]) -> Result<()> {
+    pub fn save_log(&self, log: &[u32]) -> ResultStd<()> {
         Ok(())
     }
 }

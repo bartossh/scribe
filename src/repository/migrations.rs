@@ -1,4 +1,4 @@
-pub const COMMANDS: [&str; 2] = [
+pub const COMMANDS: [&str; 5] = [
     r#"
     CREATE TABLE IF NOT EXISTS logs (
       id INTEGER PRIMARY KEY NOT NULL,
@@ -6,4 +6,12 @@ pub const COMMANDS: [&str; 2] = [
       data BLOB NOT NULL
     );"#,
     r#"CREATE INDEX timestamp_index ON logs (timestamp);"#,
+    r#"
+    CREATE TABLE IF NOT EXISTS serializer (
+      id INTEGER PRIMARY KEY NOT NULL,
+      word TEXT NOT NULL,
+      num INTEGER NOT NULL
+    );"#,
+    r#"CREATE INDEX word_index ON serializer (word);"#,
+    r#"CREATE INDEX num_index ON serializer (num);"#,
 ];
