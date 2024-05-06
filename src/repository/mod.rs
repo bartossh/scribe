@@ -1,5 +1,5 @@
 mod migrations;
-use crate::dictionary::{Serializer, SerializerReader, SerializerSaver};
+use crate::dictionary::{Module, SerializerReader, SerializerSaver};
 use sqlx::{sqlite::SqlitePool, Error, FromRow};
 use std::{
     collections::HashMap,
@@ -19,7 +19,13 @@ struct Log {
     data: Vec<u8>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub enum DatabaseStorage {
+    Ram,
+    Path(String),
+}
+
+#[derive(Debug, Clone)]
 pub struct Warehouse {
     pool: SqlitePool,
 }
@@ -27,8 +33,12 @@ pub struct Warehouse {
 impl Warehouse {
     /// Cerate a new Warehouse connected to SQLite database.
     ///
-    pub async fn new() -> Result<Self, Error> {
-        let pool = SqlitePool::connect("sqlite::memory:").await?;
+    pub async fn new(dbs: DatabaseStorage) -> Result<Self, Error> {
+        let url = match dbs {
+            DatabaseStorage::Ram => "sqlite::memory:".to_string(),
+            DatabaseStorage::Path(s) => s,
+        };
+        let pool = SqlitePool::connect(&url).await?;
         Ok(Self { pool })
     }
 
@@ -90,11 +100,15 @@ impl Warehouse {
 
         Ok(data)
     }
+
+    pub async fn close(&self) {
+        self.pool.close().await;
+    }
 }
 
 impl SerializerReader for Warehouse {
     #[inline]
-    async fn read(&self) -> Result<Serializer, Error> {
+    async fn read(&self) -> Result<Module, Error> {
         let mut conn = self.pool.acquire().await?;
 
         let rows = sqlx::query("SELECT * FROM serializer")
@@ -108,7 +122,7 @@ impl SerializerReader for Warehouse {
             m.insert(dict.word, dict.num as u32);
         }
 
-        let mut s = Serializer::new();
+        let mut s = Module::new();
         s.set_map_from(m);
 
         Ok(s)
@@ -117,7 +131,7 @@ impl SerializerReader for Warehouse {
 
 impl SerializerSaver for Warehouse {
     #[inline]
-    async fn save(&self, s: &Serializer) -> Result<(), Error> {
+    async fn save(&self, s: &Module) -> Result<(), Error> {
         let mut transaction = self.pool.begin().await?;
 
         for (w, n) in s.iter() {
@@ -137,60 +151,13 @@ impl SerializerSaver for Warehouse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dictionary::{Serializer, SerializerReader, SerializerSaver};
+    use crate::dictionary::{Module, SerializerReader, SerializerSaver};
     use std::time::Instant;
 
     const bench_loops: usize = 1000;
 
-    #[tokio::test]
-    async fn test_insert_and_get() {
-        let data: Vec<u32> = vec![
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4,
-            5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8,
-            9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-            12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-            15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-            18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-            21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-        ];
-        let time_0 = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default();
-
-        let Ok(mut warehouse) = Warehouse::new().await else {
-            println!("Cannot create warehouse");
-            assert!(false);
-            return;
-        };
-
-        let Ok(()) = warehouse.migrate().await else {
-            println!("Cannot migrate warehouse.");
-            assert!(false);
-            return;
-        };
-
-        let Ok(()) = warehouse.insert_log(&data).await else {
-            println!("Cannot insert logs into warehouse.");
-            assert!(false);
-            return;
-        };
-
-        let time_1 = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default();
-
-        let Ok(result) = warehouse.get_logs(&time_0, &time_1).await else {
-            println!("Cannot get logs from warehouse.");
-            assert!(false);
-            return;
-        };
-
-        assert_eq!(data, result[0]);
-    }
-
-    #[tokio::test]
-    async fn test_insert_bench() {
-        let data: Vec<u32> = vec![
+    fn get_data() -> Vec<u32> {
+        vec![
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4,
             5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8,
             9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
@@ -253,8 +220,66 @@ mod tests {
             9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
             12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
             15, 16, 17, 18, 19, 20, 21,
-        ];
-        let Ok(mut warehouse) = Warehouse::new().await else {
+        ]
+    }
+
+    #[tokio::test]
+    async fn test_insert_and_get() {
+        let data: Vec<u32> = get_data();
+
+        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
+            println!("Cannot create warehouse");
+            assert!(false);
+            return;
+        };
+
+        let Ok(()) = warehouse.migrate().await else {
+            println!("Cannot migrate warehouse.");
+            assert!(false);
+            return;
+        };
+
+        for _ in 0..10 {
+            let Ok(()) = warehouse.insert_log(&data).await else {
+                println!("Cannot insert logs into warehouse.");
+                assert!(false);
+                return;
+            };
+        }
+
+        let time_0 = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default();
+
+        let num_inserted_on_time = 25;
+        for _ in 0..num_inserted_on_time {
+            let Ok(()) = warehouse.insert_log(&data).await else {
+                println!("Cannot insert logs into warehouse.");
+                assert!(false);
+                return;
+            };
+        }
+
+        let time_1 = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default();
+
+        let Ok(result) = warehouse.get_logs(&time_0, &time_1).await else {
+            println!("Cannot get logs from warehouse.");
+            assert!(false);
+            return;
+        };
+
+        assert_eq!(data, result[0]);
+        assert_eq!(result.len(), num_inserted_on_time);
+
+        warehouse.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_insert_bench() {
+        let data: Vec<u32> = get_data();
+        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -282,75 +307,14 @@ mod tests {
             "Time elapsed in test_insert_bench is: {:?}",
             duration / bench_loops as u32
         );
+
+        warehouse.close().await;
     }
 
     #[tokio::test]
     async fn test_get_bench() {
-        let data: Vec<u32> = vec![
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4,
-            5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8,
-            9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-            12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-            15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-            18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-            21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3,
-            4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7,
-            8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-            11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
-            14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-            17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-            20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1,
-            2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5,
-            6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-            10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-            13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-            16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-            19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4,
-            5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8,
-            9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-            12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-            15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-            18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-            21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3,
-            4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7,
-            8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-            11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
-            14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-            17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-            20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1,
-            2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5,
-            6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-            10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-            13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-            16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-            19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4,
-            5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8,
-            9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-            12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-            15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-            18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-            21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3,
-            4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7,
-            8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-            11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
-            14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-            17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-            20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1,
-            2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5,
-            6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-            10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-            13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-            16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-            19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4,
-            5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8,
-            9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-            12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-            15, 16, 17, 18, 19, 20, 21,
-        ];
-        let Ok(mut warehouse) = Warehouse::new().await else {
+        let data: Vec<u32> = get_data();
+        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -394,6 +358,8 @@ mod tests {
             "Time elapsed in test_get_bench is: {:?}",
             duration / bench_loops as u32
         );
+
+        warehouse.close().await;
     }
 
     #[tokio::test]
@@ -404,10 +370,10 @@ mod tests {
             hm.insert(w.to_string(), i as u32);
         }
 
-        let mut s = Serializer::new();
+        let mut s = Module::new();
         s.set_map_from(hm);
 
-        let Ok(mut warehouse) = Warehouse::new().await else {
+        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -424,6 +390,8 @@ mod tests {
             assert!(false);
             return;
         };
+
+        warehouse.close().await;
     }
 
     #[tokio::test]
@@ -434,10 +402,10 @@ mod tests {
             hm.insert(w.to_string(), i as u32);
         }
 
-        let mut s = Serializer::new();
+        let mut s = Module::new();
         s.set_map_from(hm);
 
-        let Ok(mut warehouse) = Warehouse::new().await else {
+        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -455,10 +423,12 @@ mod tests {
             return;
         };
 
-        let Ok(n_s) = warehouse.read().await else {
+        let Ok(_) = warehouse.read().await else {
             println!("Cannot save serializer warehouse");
             assert!(false);
             return;
         };
+
+        warehouse.close().await;
     }
 }

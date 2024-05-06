@@ -9,30 +9,32 @@ use std::io::{LineWriter, Result as ResultStd, Write};
 /// Stores Serializer in Self.
 ///
 pub trait SerializerSaver {
-    async fn save(&self, s: &Serializer) -> Result<(), ErrorSql>;
+    async fn save(&self, s: &Module) -> Result<(), ErrorSql>;
 }
 
 /// Reads stored Serializer in Self.
 ///
 pub trait SerializerReader {
-    async fn read(&self) -> Result<Serializer, ErrorSql>;
+    async fn read(&self) -> Result<Module, ErrorSql>;
 }
 
 /// Serializer serialize the log in to the binary format.
 ///
 #[derive(Debug, Clone)]
-pub struct Serializer {
+pub struct Module {
     words_to_numbers: HashMap<String, u32>,
+    nums_to_words: HashMap<u32, String>,
     last_available_number: u32,
 }
 
-impl Serializer {
+impl Module {
     /// Creates new Book that holds no values yet.
     ///
     #[inline]
     pub fn new() -> Self {
         Self {
             words_to_numbers: HashMap::new(),
+            nums_to_words: HashMap::new(),
             last_available_number: 0,
         }
     }
@@ -48,6 +50,7 @@ impl Serializer {
                 self.last_available_number = *n
             }
         });
+        self.nums_from_words();
     }
 
     /// Serializes the value in to the numeric representation of data.
@@ -61,11 +64,29 @@ impl Serializer {
                     self.last_available_number += 1;
                     self.words_to_numbers
                         .insert(token.to_string(), self.last_available_number);
+                    self.nums_to_words
+                        .insert(self.last_available_number, token.to_string());
                     return self.last_available_number;
                 };
                 *num
             })
             .collect()
+    }
+
+    /// Deserializes numeric representation of data to String.
+    ///
+    #[inline(always)]
+    pub fn deserialize(&self, buffer: &[u32]) -> String {
+        let mut msg = "".to_string();
+        for candidate in buffer.into_iter() {
+            match self.nums_to_words.get(candidate) {
+                Some(w) => msg.push_str(w),
+                None => msg.push_str("[?]"),
+            }
+            msg.push(' ');
+        }
+
+        msg.trim().to_string()
     }
 
     /// Allows to iterate over inner words to num collection.
@@ -106,47 +127,16 @@ impl Serializer {
             }
             serializer.words_to_numbers.insert(w.to_string(), n);
         }
+        serializer.nums_from_words();
 
         Ok(serializer)
     }
 
     #[inline(always)]
-    pub fn save_log(&self, log: &[u32]) -> ResultStd<()> {
-        Ok(())
-    }
-}
-
-/// Deserializer deserializes logs from binary format.
-///
-#[derive(Debug, Clone)]
-pub struct Deserializer {
-    nums_to_words: HashMap<u32, String>,
-}
-
-impl Deserializer {
-    #[inline]
-    pub fn from(s: &Serializer) -> Self {
-        let mut nums_to_words = HashMap::new();
-        for (k, v) in s.words_to_numbers.iter() {
-            nums_to_words.insert(*v, k.clone());
+    fn nums_from_words(&mut self) {
+        for (k, v) in self.words_to_numbers.iter() {
+            self.nums_to_words.insert(*v, k.clone());
         }
-        Self { nums_to_words }
-    }
-
-    /// Deserializes numeric representation of data to String.
-    ///
-    #[inline(always)]
-    pub fn deserialize(&self, buffer: &[u32]) -> String {
-        let mut msg = "".to_string();
-        for candidate in buffer.into_iter() {
-            match self.nums_to_words.get(candidate) {
-                Some(w) => msg.push_str(w),
-                None => msg.push_str("[?]"),
-            }
-            msg.push(' ');
-        }
-
-        msg.trim().to_string()
     }
 }
 
@@ -161,14 +151,14 @@ mod tests {
 
     #[test]
     fn test_serialize_once() {
-        let mut serialize = Serializer::new();
+        let mut serialize = Module::new();
         let buffer = serialize.serialize(text);
-        println!("BUFFER:\n {:?} \n", buffer);
+        assert!(buffer.len() > 0);
     }
 
     #[test]
     fn test_serialize_bench() {
-        let mut book = Serializer::new();
+        let mut book = Module::new();
         let start = Instant::now();
         for _ in 0..bench_loops {
             book.serialize(text);
@@ -183,31 +173,30 @@ mod tests {
 
     #[test]
     fn test_deserialize_once() {
-        let mut serialize = Serializer::new();
-        let buffer = serialize.serialize(text);
-        let deserialize = Deserializer::from(&serialize);
-        let log = deserialize.deserialize(&buffer);
+        let mut module = Module::new();
+        let buffer = module.serialize(text);
+        let log = module.deserialize(&buffer);
         assert_eq!(text, log);
     }
 
     #[test]
     fn test_serialize_save_read() {
-        let mut serialize = Serializer::new();
-        let buffer = serialize.serialize(text);
-        if let Err(_) = serialize.save_schema_to_file(path) {
+        let mut module = Module::new();
+        let buffer = module.serialize(text);
+        if let Err(_) = module.save_schema_to_file(path) {
             assert!(false);
         }
-        let Ok(new_serializer) = Serializer::read_schema_from_file(path) else {
+        let Ok(new_serializer) = Module::read_schema_from_file(path) else {
             assert!(false);
             return;
         };
 
         assert_eq!(
-            serialize.last_available_number,
+            module.last_available_number,
             new_serializer.last_available_number
         );
 
-        for (k, v) in serialize.words_to_numbers.iter() {
+        for (k, v) in module.words_to_numbers.iter() {
             match new_serializer.words_to_numbers.get(k) {
                 Some(n_v) => assert_eq!(*v, *n_v),
                 None => assert!(false),
@@ -217,13 +206,11 @@ mod tests {
 
     #[test]
     fn test_deserialize_bench() {
-        let mut serialize = Serializer::new();
-        let buffer = serialize.serialize(text);
-        let deserialize = Deserializer::from(&serialize);
-        let mut book = Serializer::new();
+        let mut module = Module::new();
+        let buffer = module.serialize(text);
         let start = Instant::now();
         for _ in 0..bench_loops {
-            let _ = deserialize.deserialize(&buffer);
+            let _ = module.deserialize(&buffer);
         }
 
         let duration = start.elapsed();
