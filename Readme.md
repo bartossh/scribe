@@ -12,8 +12,14 @@ Yet another logs server, that keeps logs in binary-packed format.
 
 Developed with `rustc 1.77.2` and `cargo 1.77.2`.
 
-### Test
+### Unit Tests 
 
 ```sh
 cargo test --profile test -- --nocapture --test-threads=1
+```
+
+### Run server
+
+```sh
+cargo run --release 
 ```
