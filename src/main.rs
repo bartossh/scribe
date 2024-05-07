@@ -50,12 +50,12 @@ async fn version(state: Data<ServerActor>) -> Result<impl Responder> {
 #[inline(always)]
 #[post("/save")]
 async fn save_log(input: Json<Input>, state: Data<ServerActor>) -> Result<impl Responder> {
-    let Ok(mut r) = state.dict.write() else {
+    let Ok(mut dict) = state.dict.write() else {
         return Err(error::ErrorInternalServerError(
             "Dictionary is not responding.",
         ));
     };
-    let buf = r.serialize(&input.log);
+    let buf = dict.serialize(&input.log);
     let Ok(()) = state.repo.insert_log(&buf).await else {
         return Err(error::ErrorInternalServerError("Database not responding."));
     };
@@ -71,14 +71,14 @@ async fn read_log(input: Json<Query>, state: Data<ServerActor>) -> Result<impl R
     let Ok(logs) = state.repo.get_logs(&from, &to).await else {
         return Err(error::ErrorInternalServerError("Database not responding."));
     };
-    let Ok(mut r) = state.dict.read() else {
+    let Ok(dict) = state.dict.read() else {
         return Err(error::ErrorInternalServerError(
             "Dictionary is not responding.",
         ));
     };
     let mut output = Output { logs: Vec::new() };
     for log in logs.iter() {
-        output.logs.push(r.deserialize(&log));
+        output.logs.push(dict.deserialize(&log));
     }
 
     Ok(Json(output))
