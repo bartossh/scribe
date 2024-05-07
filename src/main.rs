@@ -27,8 +27,8 @@ struct Output {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Query {
-    from: Duration,
-    to: Duration,
+    from: u64,
+    to: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -66,7 +66,9 @@ async fn save_log(input: Json<Input>, state: Data<ServerActor>) -> Result<impl R
 #[inline(always)]
 #[post("/read")]
 async fn read_log(input: Json<Query>, state: Data<ServerActor>) -> Result<impl Responder> {
-    let Ok(logs) = state.repo.get_logs(&input.from, &input.to).await else {
+    let from = Duration::from_nanos(input.from);
+    let to = Duration::from_nanos(input.to);
+    let Ok(logs) = state.repo.get_logs(&from, &to).await else {
         return Err(error::ErrorInternalServerError("Database not responding."));
     };
     let Ok(mut r) = state.dict.read() else {
@@ -112,6 +114,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(service.clone()))
             .service(version)
+            .service(save_log)
+            .service(read_log)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
