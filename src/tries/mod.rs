@@ -239,7 +239,7 @@ mod tests {
 
         let start = Instant::now();
 
-        for (i, w) in words.iter().enumerate() {
+        for (_, w) in words.iter().enumerate() {
             let _ = root.find_prefix(&w[0..BENCH_WORD_SIZE / 2 as usize]);
         }
 
