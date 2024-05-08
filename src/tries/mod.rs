@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 /// Node is a part of tries graph.
 /// First node is a root of the tree and Contains None number and \0 char.
 /// Root node task is to be the entry point in to the graph.
@@ -63,8 +61,8 @@ mod tests {
     use rand::{distributions::Alphanumeric, thread_rng, Rng};
     use std::time::Instant;
 
-    const BENCH_LOOP_SIZE: usize = 10000;
-    const BENCH_WORD_SIZE: usize = 8;
+    const BENCH_LOOP_SIZE: usize = 100000;
+    const BENCH_WORD_SIZE: usize = 12;
 
     const TEST_WORDS_PUSH: [&str; 10] = [
         "aba",
@@ -156,9 +154,11 @@ mod tests {
         let duration = start.elapsed();
 
         println!(
-            "Time elapsed in test_bench_push is: {:?} for {} words.",
+            "Time elapsed in test_bench_push is: {:?} for one word in {} words of length {}, total {:?}.",
             duration / BENCH_LOOP_SIZE as u32,
             words.len(),
+            BENCH_WORD_SIZE,
+            duration
         );
     }
 
@@ -188,9 +188,11 @@ mod tests {
         let duration = start.elapsed();
 
         println!(
-            "Time elapsed in test_bench_find_match is: {:?} for {} words.",
+            "Time elapsed in test_bench_find_match is: {:?} for one word in {} words of length {}. total {:?}.",
             duration / BENCH_LOOP_SIZE as u32,
             words.len(),
+            BENCH_WORD_SIZE,
+            duration
         );
     }
 }
