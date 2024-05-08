@@ -49,14 +49,17 @@ impl Node {
     ///
     pub fn find_prefix(&self, s: &str) -> Vec<u32> {
         let mut curr = self;
+        let mut nums = Vec::new();
         for c in s.chars() {
             if let Some(node) = curr.nodes.get(&c) {
+                if let Some(num) = node.num {
+                    nums.push(num);
+                }
                 curr = node;
             } else {
-                return Vec::new();
+                return nums;
             }
         }
-        let mut nums = Vec::new();
         curr.append_inner(&mut nums);
         nums
     }
