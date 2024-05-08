@@ -1,5 +1,6 @@
 mod dictionary;
 mod repository;
+mod tries;
 
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 use serde::{Deserialize, Serialize};

@@ -145,14 +145,14 @@ mod tests {
     use super::*;
     use std::time::Instant;
 
-    const text: &str = "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur";
-    const bench_loops: usize = 10000;
-    const path: &str = "./test.schema";
+    const TEXT: &str = "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur";
+    const BENCH_LOOP: usize = 10000;
+    const PATH: &str = "./test.schema";
 
     #[test]
     fn test_serialize_once() {
         let mut serialize = Module::new();
-        let buffer = serialize.serialize(text);
+        let buffer = serialize.serialize(TEXT);
         assert!(buffer.len() > 0);
     }
 
@@ -160,33 +160,33 @@ mod tests {
     fn test_serialize_bench() {
         let mut book = Module::new();
         let start = Instant::now();
-        for _ in 0..bench_loops {
-            book.serialize(text);
+        for _ in 0..BENCH_LOOP {
+            book.serialize(TEXT);
         }
         let duration = start.elapsed();
 
         println!(
             "Time elapsed in test_serialize_bench is: {:?}",
-            duration / bench_loops as u32
+            duration / BENCH_LOOP as u32
         );
     }
 
     #[test]
     fn test_deserialize_once() {
         let mut module = Module::new();
-        let buffer = module.serialize(text);
+        let buffer = module.serialize(TEXT);
         let log = module.deserialize(&buffer);
-        assert_eq!(text, log);
+        assert_eq!(TEXT, log);
     }
 
     #[test]
     fn test_serialize_save_read() {
         let mut module = Module::new();
-        let buffer = module.serialize(text);
-        if let Err(_) = module.save_schema_to_file(path) {
+        let buffer = module.serialize(TEXT);
+        if let Err(_) = module.save_schema_to_file(PATH) {
             assert!(false);
         }
-        let Ok(new_serializer) = Module::read_schema_from_file(path) else {
+        let Ok(new_serializer) = Module::read_schema_from_file(PATH) else {
             assert!(false);
             return;
         };
@@ -207,9 +207,9 @@ mod tests {
     #[test]
     fn test_deserialize_bench() {
         let mut module = Module::new();
-        let buffer = module.serialize(text);
+        let buffer = module.serialize(TEXT);
         let start = Instant::now();
-        for _ in 0..bench_loops {
+        for _ in 0..BENCH_LOOP {
             let _ = module.deserialize(&buffer);
         }
 
@@ -217,7 +217,7 @@ mod tests {
 
         println!(
             "Time elapsed in test_deserialize_once is: {:?}",
-            duration / bench_loops as u32
+            duration / BENCH_LOOP as u32
         );
     }
 }
