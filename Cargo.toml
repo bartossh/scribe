@@ -12,7 +12,6 @@ opt-level = 3
 [dependencies]
 actix-web = "4.5.1"
 derive_more = "0.99.17"
-mockall = "0.12.1"
 rand = "0.8.5"
 scanf = "1.2.1"
 serde = "1.0.200"

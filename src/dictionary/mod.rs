@@ -1,5 +1,3 @@
-use mockall::predicate::*;
-use mockall::*;
 use scanf::sscanf;
 use sqlx::Error as ErrorSql;
 use std::collections::{HashMap, HashSet};
@@ -10,10 +8,8 @@ use std::io::{LineWriter, Result as ResultStd, Write};
 
 /// Offers finding mechanism for matching words with numeric representation.
 ///
-#[automock]
 pub trait Filter: Send + Sync {
     fn push(&mut self, s: &str, num: u32);
-    // fn find_match(&self, s: &str) -> Option<u32>;
     fn find_prefix(&self, s: &str) -> HashSet<u32>;
 }
 
@@ -78,6 +74,7 @@ impl Module {
                         .insert(token.to_string(), self.last_available_number);
                     self.nums_to_words
                         .insert(self.last_available_number, token.to_string());
+                    self.filter.push(token, self.last_available_number);
                     return self.last_available_number;
                 };
                 *num
@@ -125,12 +122,8 @@ impl Module {
     /// Reads schema from a file.
     ///
     #[inline]
-    pub fn read_schema_from_file(path: &str) -> ResultStd<Self> {
-        let mut mock = MockFilter::new();
-        mock.expect_push();
-        mock.expect_find_prefix().return_const(HashSet::new());
-
-        let mut serializer = Self::new(mock);
+    pub fn read_schema_from_file(path: &str, f: impl Filter + 'static) -> ResultStd<Self> {
+        let mut serializer = Self::new(f);
         let mut file = File::open(path)?;
         let mut reader = BufReader::new(file);
 
@@ -165,11 +158,23 @@ mod tests {
     const BENCH_LOOP: usize = 10000;
     const PATH: &str = "./test.schema";
 
+    struct MyFilterMock {}
+    impl MyFilterMock {
+        fn new() -> Self {
+            Self {}
+        }
+    }
+
+    impl Filter for MyFilterMock {
+        fn push(&mut self, s: &str, num: u32) {}
+        fn find_prefix(&self, s: &str) -> HashSet<u32> {
+            HashSet::new()
+        }
+    }
+
     #[test]
     fn test_serialize_once() {
-        let mut mock = MockFilter::new();
-        mock.expect_push();
-        mock.expect_find_prefix().return_const(HashSet::new());
+        let mock = MyFilterMock::new();
 
         let mut serialize = Module::new(mock);
         let buffer = serialize.serialize(TEXT);
@@ -178,10 +183,7 @@ mod tests {
 
     #[test]
     fn test_serialize_bench() {
-        let mut mock = MockFilter::new();
-        mock.expect_push();
-        mock.expect_find_prefix().return_const(HashSet::new());
-
+        let mock = MyFilterMock::new();
         let mut serialize = Module::new(mock);
         let start = Instant::now();
         for _ in 0..BENCH_LOOP {
@@ -197,9 +199,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_once() {
-        let mut mock = MockFilter::new();
-        mock.expect_push();
-        mock.expect_find_prefix().return_const(HashSet::new());
+        let mock = MyFilterMock::new();
 
         let mut serialize = Module::new(mock);
         let buffer = serialize.serialize(TEXT);
@@ -209,16 +209,15 @@ mod tests {
 
     #[test]
     fn test_serialize_save_read() {
-        let mut mock = MockFilter::new();
-        mock.expect_push();
-        mock.expect_find_prefix().return_const(HashSet::new());
+        let mock = MyFilterMock::new();
 
         let mut serialize = Module::new(mock);
         let buffer = serialize.serialize(TEXT);
         if let Err(_) = serialize.save_schema_to_file(PATH) {
             assert!(false);
         }
-        let Ok(new_serializer) = Module::read_schema_from_file(PATH) else {
+        let mock1 = MyFilterMock::new();
+        let Ok(new_serializer) = Module::read_schema_from_file(PATH, mock1) else {
             assert!(false);
             return;
         };
@@ -238,9 +237,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_bench() {
-        let mut mock = MockFilter::new();
-        mock.expect_push();
-        mock.expect_find_prefix().return_const(HashSet::new());
+        let mock = MyFilterMock::new();
 
         let mut serialize = Module::new(mock);
         let buffer = serialize.serialize(TEXT);
