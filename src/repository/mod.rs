@@ -1,5 +1,6 @@
 mod migrations;
 use crate::dictionary::{Module, SerializerReader, SerializerSaver};
+use crate::tries::Node;
 use sqlx::{sqlite::SqlitePool, Error, FromRow};
 use std::{
     collections::HashMap,
@@ -122,7 +123,9 @@ impl SerializerReader for Warehouse {
             m.insert(dict.word, dict.num as u32);
         }
 
-        let mut s = Module::new();
+        let graph = Node::new();
+
+        let mut s = Module::new(graph);
         s.set_map_from(m);
 
         Ok(s)
@@ -154,7 +157,7 @@ mod tests {
     use crate::dictionary::{Module, SerializerReader, SerializerSaver};
     use std::time::Instant;
 
-    const bench_loops: usize = 1000;
+    const BENCH_LOOP: usize = 1000;
 
     fn get_data() -> Vec<u32> {
         vec![
@@ -293,7 +296,7 @@ mod tests {
 
         let start = Instant::now();
 
-        for _ in 0..bench_loops {
+        for _ in 0..BENCH_LOOP {
             let Ok(()) = warehouse.insert_log(&data).await else {
                 println!("Cannot insert logs into warehouse.");
                 assert!(false);
@@ -305,7 +308,7 @@ mod tests {
 
         println!(
             "Time elapsed in test_insert_bench is: {:?}",
-            duration / bench_loops as u32
+            duration / BENCH_LOOP as u32
         );
 
         warehouse.close().await;
@@ -344,7 +347,7 @@ mod tests {
 
         let start = Instant::now();
 
-        for _ in 0..bench_loops {
+        for _ in 0..BENCH_LOOP {
             let Ok(_) = warehouse.get_logs(&time_0, &time_1).await else {
                 println!("Cannot get logs from warehouse.");
                 assert!(false);
@@ -356,7 +359,7 @@ mod tests {
 
         println!(
             "Time elapsed in test_get_bench is: {:?}",
-            duration / bench_loops as u32
+            duration / BENCH_LOOP as u32
         );
 
         warehouse.close().await;
@@ -369,8 +372,9 @@ mod tests {
         for (i, w) in ["a", "b", "c", "d"].iter().enumerate() {
             hm.insert(w.to_string(), i as u32);
         }
+        let graph = Node::new();
 
-        let mut s = Module::new();
+        let mut s: Module = Module::new(graph);
         s.set_map_from(hm);
 
         let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
@@ -402,7 +406,9 @@ mod tests {
             hm.insert(w.to_string(), i as u32);
         }
 
-        let mut s = Module::new();
+        let graph = Node::new();
+
+        let mut s: Module = Module::new(graph);
         s.set_map_from(hm);
 
         let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {

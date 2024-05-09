@@ -32,11 +32,20 @@ struct Query {
     to: u64,
 }
 
-#[derive(Debug, Clone)]
 struct ServerActor {
     version: String,
     repo: Box<Arc<repository::Warehouse>>,
     dict: Box<Arc<RwLock<dictionary::Module>>>,
+}
+
+impl Clone for ServerActor {
+    fn clone(&self) -> Self {
+        Self {
+            version: self.version.clone(),
+            repo: self.repo.clone(),
+            dict: self.dict.clone(),
+        }
+    }
 }
 
 #[inline(always)]
@@ -57,8 +66,8 @@ async fn save_log(input: Json<Input>, state: Data<ServerActor>) -> Result<impl R
         ));
     };
     let buf = dict.serialize(&input.log);
-    let Ok(()) = state.repo.insert_log(&buf).await else {
-        return Err(error::ErrorInternalServerError("Database not responding."));
+    if let Err(e) = state.repo.insert_log(&buf).await {
+        return Err(error::ErrorInternalServerError(e.to_string()));
     };
 
     Ok(HttpResponse::Ok())
@@ -94,10 +103,10 @@ async fn main() -> std::io::Result<()> {
         ));
     };
 
-    let Ok(()) = repo.migrate().await else {
+    if let Err(e) = repo.migrate().await {
         return Err(std::io::Error::new::<String>(
             std::io::ErrorKind::NotConnected,
-            "repository is not responding".to_string(),
+            e.to_string(),
         ));
     };
 
@@ -106,7 +115,9 @@ async fn main() -> std::io::Result<()> {
     let service = ServerActor {
         version: VERSION.to_string(),
         repo: repo.clone(),
-        dict: Box::new(Arc::new(RwLock::new(dictionary::Module::new()))),
+        dict: Box::new(Arc::new(RwLock::new(dictionary::Module::new(
+            tries::Node::new(),
+        )))),
     };
 
     println!("\nStarting scribe server at [ 127.0.0.1:8080 ]\n");

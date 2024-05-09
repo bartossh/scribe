@@ -1,10 +1,21 @@
+use mockall::predicate::*;
+use mockall::*;
 use scanf::sscanf;
 use sqlx::Error as ErrorSql;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::{LineWriter, Result as ResultStd, Write};
+
+/// Offers finding mechanism for matching words with numeric representation.
+///
+#[automock]
+pub trait Filter: Send + Sync {
+    fn push(&mut self, s: &str, num: u32);
+    // fn find_match(&self, s: &str) -> Option<u32>;
+    fn find_prefix(&self, s: &str) -> HashSet<u32>;
+}
 
 /// Stores Serializer in Self.
 ///
@@ -20,22 +31,23 @@ pub trait SerializerReader {
 
 /// Serializer serialize the log in to the binary format.
 ///
-#[derive(Debug, Clone)]
 pub struct Module {
     words_to_numbers: HashMap<String, u32>,
     nums_to_words: HashMap<u32, String>,
     last_available_number: u32,
+    filter: Box<dyn Filter>,
 }
 
 impl Module {
     /// Creates new Book that holds no values yet.
     ///
     #[inline]
-    pub fn new() -> Self {
+    pub fn new(f: impl Filter + 'static) -> Self {
         Self {
             words_to_numbers: HashMap::new(),
             nums_to_words: HashMap::new(),
             last_available_number: 0,
+            filter: Box::new(f),
         }
     }
 
@@ -114,7 +126,11 @@ impl Module {
     ///
     #[inline]
     pub fn read_schema_from_file(path: &str) -> ResultStd<Self> {
-        let mut serializer = Self::new();
+        let mut mock = MockFilter::new();
+        mock.expect_push();
+        mock.expect_find_prefix().return_const(HashSet::new());
+
+        let mut serializer = Self::new(mock);
         let mut file = File::open(path)?;
         let mut reader = BufReader::new(file);
 
@@ -151,17 +167,25 @@ mod tests {
 
     #[test]
     fn test_serialize_once() {
-        let mut serialize = Module::new();
+        let mut mock = MockFilter::new();
+        mock.expect_push();
+        mock.expect_find_prefix().return_const(HashSet::new());
+
+        let mut serialize = Module::new(mock);
         let buffer = serialize.serialize(TEXT);
         assert!(buffer.len() > 0);
     }
 
     #[test]
     fn test_serialize_bench() {
-        let mut book = Module::new();
+        let mut mock = MockFilter::new();
+        mock.expect_push();
+        mock.expect_find_prefix().return_const(HashSet::new());
+
+        let mut serialize = Module::new(mock);
         let start = Instant::now();
         for _ in 0..BENCH_LOOP {
-            book.serialize(TEXT);
+            serialize.serialize(TEXT);
         }
         let duration = start.elapsed();
 
@@ -173,17 +197,25 @@ mod tests {
 
     #[test]
     fn test_deserialize_once() {
-        let mut module = Module::new();
-        let buffer = module.serialize(TEXT);
-        let log = module.deserialize(&buffer);
+        let mut mock = MockFilter::new();
+        mock.expect_push();
+        mock.expect_find_prefix().return_const(HashSet::new());
+
+        let mut serialize = Module::new(mock);
+        let buffer = serialize.serialize(TEXT);
+        let log = serialize.deserialize(&buffer);
         assert_eq!(TEXT, log);
     }
 
     #[test]
     fn test_serialize_save_read() {
-        let mut module = Module::new();
-        let buffer = module.serialize(TEXT);
-        if let Err(_) = module.save_schema_to_file(PATH) {
+        let mut mock = MockFilter::new();
+        mock.expect_push();
+        mock.expect_find_prefix().return_const(HashSet::new());
+
+        let mut serialize = Module::new(mock);
+        let buffer = serialize.serialize(TEXT);
+        if let Err(_) = serialize.save_schema_to_file(PATH) {
             assert!(false);
         }
         let Ok(new_serializer) = Module::read_schema_from_file(PATH) else {
@@ -192,11 +224,11 @@ mod tests {
         };
 
         assert_eq!(
-            module.last_available_number,
+            serialize.last_available_number,
             new_serializer.last_available_number
         );
 
-        for (k, v) in module.words_to_numbers.iter() {
+        for (k, v) in serialize.words_to_numbers.iter() {
             match new_serializer.words_to_numbers.get(k) {
                 Some(n_v) => assert_eq!(*v, *n_v),
                 None => assert!(false),
@@ -206,11 +238,15 @@ mod tests {
 
     #[test]
     fn test_deserialize_bench() {
-        let mut module = Module::new();
-        let buffer = module.serialize(TEXT);
+        let mut mock = MockFilter::new();
+        mock.expect_push();
+        mock.expect_find_prefix().return_const(HashSet::new());
+
+        let mut serialize = Module::new(mock);
+        let buffer = serialize.serialize(TEXT);
         let start = Instant::now();
         for _ in 0..BENCH_LOOP {
-            let _ = module.deserialize(&buffer);
+            let _ = serialize.deserialize(&buffer);
         }
 
         let duration = start.elapsed();

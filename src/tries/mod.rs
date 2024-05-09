@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use crate::dictionary::Filter;
+use std::collections::{HashMap, HashSet};
 
 /// Node is a part of tries graph.
 /// First node is a root of the tree and Contains None number and \0 char.
@@ -20,17 +21,6 @@ impl Node {
         }
     }
 
-    /// Push string in to the trie graph giving it a num index.
-    /// Num index shall be unique and it is not the case of trie to validate it uniqueness.
-    ///
-    pub fn push(&mut self, s: &str, num: u32) {
-        let mut curr = self;
-        for c in s.chars() {
-            curr = curr.nodes.entry(c).or_insert_with(|| Box::new(Node::new()));
-        }
-        curr.num = Some(num);
-    }
-
     /// Find matching string in the trie graph returning it index num if found or None otherwise.
     ///
     pub fn find_match(&self, s: &str) -> Option<u32> {
@@ -45,15 +35,37 @@ impl Node {
         curr.num
     }
 
+    fn append_inner(&self, nums: &mut HashSet<u32>) {
+        for (_, next) in self.nodes.iter() {
+            if let Some(num) = next.num {
+                nums.insert(num);
+            }
+            next.append_inner(nums);
+        }
+    }
+}
+
+impl Filter for Node {
+    /// Push string in to the trie graph giving it a num index.
+    /// Num index shall be unique and it is not the case of trie to validate it uniqueness.
+    ///
+    fn push(&mut self, s: &str, num: u32) {
+        let mut curr = self;
+        for c in s.chars() {
+            curr = curr.nodes.entry(c).or_insert_with(|| Box::new(Node::new()));
+        }
+        curr.num = Some(num);
+    }
+
     /// Finds all index nums with matching string prefix.
     ///
-    pub fn find_prefix(&self, s: &str) -> Vec<u32> {
+    fn find_prefix(&self, s: &str) -> HashSet<u32> {
         let mut curr = self;
-        let mut nums = Vec::new();
+        let mut nums = HashSet::new();
         for c in s.chars() {
             if let Some(node) = curr.nodes.get(&c) {
                 if let Some(num) = node.num {
-                    nums.push(num);
+                    nums.insert(num);
                 }
                 curr = node;
             } else {
@@ -62,15 +74,6 @@ impl Node {
         }
         curr.append_inner(&mut nums);
         nums
-    }
-
-    fn append_inner(&self, nums: &mut Vec<u32>) {
-        for (_, next) in self.nodes.iter() {
-            if let Some(num) = next.num {
-                nums.push(num);
-            }
-            next.append_inner(nums);
-        }
     }
 }
 

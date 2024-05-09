@@ -9,8 +9,8 @@ pub const COMMANDS: [&str; 5] = [
     r#"
     CREATE TABLE IF NOT EXISTS serializer (
       id INTEGER PRIMARY KEY NOT NULL,
-      word TEXT NOT NULL,
-      num INTEGER NOT NULL
+      word TEXT NOT NULL UNIQUE,
+      num INTEGER NOT NULL UNIQUE
     );"#,
     r#"CREATE INDEX word_index ON serializer (word);"#,
     r#"CREATE INDEX num_index ON serializer (num);"#,
