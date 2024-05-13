@@ -1,9 +1,11 @@
 mod dictionary;
 mod repository;
+mod settings;
 mod tries;
 
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use web::{Data, Json};
@@ -108,6 +110,12 @@ async fn read_logs(input: Json<Query>, state: Data<ServerActor>) -> Result<impl 
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let args: Vec<String> = env::args().collect();
+    let setup = match args.len() {
+        0 | 1 => settings::Setup::default(),
+        _ => settings::Setup::from_file(&args[1])?,
+    };
+
     let Ok(mut repo) = repository::Warehouse::new(repository::DatabaseStorage::Ram).await else {
         return Err(std::io::Error::new::<String>(
             std::io::ErrorKind::NotConnected,
@@ -132,7 +140,7 @@ async fn main() -> std::io::Result<()> {
         )))),
     };
 
-    println!("\nStarting scribe server at [ 127.0.0.1:8080 ]\n");
+    println!("\nStarting scribe server at [ {} ]\n", setup.get_addr());
 
     HttpServer::new(move || {
         App::new()
@@ -141,7 +149,7 @@ async fn main() -> std::io::Result<()> {
             .service(save_log)
             .service(read_logs)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind((setup.get_ip(), setup.get_port()))?
     .run()
     .await
     .unwrap_or_else(|e| println!("\nCannot run scribe server due to: {}\n", e));

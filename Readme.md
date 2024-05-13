@@ -20,6 +20,14 @@ cargo test --profile test -- --nocapture --test-threads=1
 
 ### Run server
 
+1. Default on addr: `0.0.0.0:8000`
+
 ```sh
 cargo run --release 
+```
+
+2. With `setup.yaml` file path as the argument. The File contains the setup parameters. Look in to `default.yaml` for reference.
+
+```sh
+cargo run --release setup.yaml
 ```
