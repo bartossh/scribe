@@ -8,7 +8,7 @@ for _ in range(1000):
     process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
     cmd = '''
-       curl http://localhost:8080/read -H "Content-Type: application/json" --request POST --data '{"from": 0, "to": 1915064118302449000}'  '''
+       curl http://localhost:8080/read -H "Content-Type: application/json" --request POST --data '{"from": 0, "to": 1915064118302449000, "prefix": "du", "words": ["czemu", "moze", "logach"]}' '''
     args = shlex.split(cmd)
     process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
