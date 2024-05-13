@@ -1,7 +1,7 @@
 mod dictionary;
 mod repository;
 mod settings;
-mod tries;
+mod trie;
 
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 use serde::{Deserialize, Serialize};
@@ -136,7 +136,7 @@ async fn main() -> std::io::Result<()> {
         version: VERSION.to_string(),
         repo: repo.clone(),
         dict: Box::new(Arc::new(RwLock::new(dictionary::Module::new(
-            tries::Node::new(),
+            trie::Node::new(),
         )))),
     };
 
