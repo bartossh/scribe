@@ -26,7 +26,7 @@ cargo test --profile test -- --nocapture --test-threads=1
 cargo run --release 
 ```
 
-2. With `setup.yaml` file path as the argument. The File contains the setup parameters. Look in to `default.yaml` for reference.
+2. With `setup.yaml` file path as the argument. The file contains the setup parameters. Look in to `default.yaml` for a reference.
 
 ```sh
 cargo run --release setup.yaml
