@@ -98,6 +98,47 @@ impl Module {
         msg.trim().to_string()
     }
 
+    /// Filters buffers based on matching prefix.
+    ///
+    #[inline(always)]
+    pub fn filter_prefixed(&self, word: &str, buffers: Vec<Vec<u32>>) -> Vec<Vec<u32>> {
+        let mut filtered = Vec::new();
+        let set = self.filter.find_prefix(word);
+        'outer: for buf in buffers.iter() {
+            for member in buf.iter() {
+                if set.contains(member) {
+                    filtered.push(buf.to_vec());
+                    continue 'outer;
+                }
+            }
+        }
+
+        filtered
+    }
+
+    /// Filters buffers based on matching full word from slice of words.
+    ///
+    #[inline(always)]
+    pub fn filter_word(&self, words: &[String], buffers: Vec<Vec<u32>>) -> Vec<Vec<u32>> {
+        let mut filtered = Vec::new();
+        let mut set: HashSet<u32> = HashSet::new();
+        for w in words.iter() {
+            if let Some(num) = self.words_to_numbers.get(w) {
+                set.insert(*num);
+            }
+        }
+        'outer: for buf in buffers.iter() {
+            for member in buf.iter() {
+                if set.contains(member) {
+                    filtered.push(buf.to_vec());
+                    continue 'outer;
+                }
+            }
+        }
+
+        filtered
+    }
+
     /// Allows to iterate over inner words to num collection.
     ///
     #[inline(always)]
@@ -166,8 +207,8 @@ mod tests {
     }
 
     impl Filter for MyFilterMock {
-        fn push(&mut self, s: &str, num: u32) {}
-        fn find_prefix(&self, s: &str) -> HashSet<u32> {
+        fn push(&mut self, _: &str, _: u32) {}
+        fn find_prefix(&self, _: &str) -> HashSet<u32> {
             HashSet::new()
         }
     }
@@ -233,6 +274,45 @@ mod tests {
                 None => assert!(false),
             };
         }
+    }
+
+    #[test]
+    fn test_find_prefixes() {
+        struct MyFindPrefixTestFilterMock {
+            h: HashSet<u32>,
+        }
+        impl MyFindPrefixTestFilterMock {
+            fn new(h: HashSet<u32>) -> Self {
+                Self { h }
+            }
+        }
+
+        impl Filter for MyFindPrefixTestFilterMock {
+            fn push(&mut self, _: &str, num: u32) {}
+            fn find_prefix(&self, _: &str) -> HashSet<u32> {
+                self.h.clone()
+            }
+        }
+
+        let mut hs = HashSet::new();
+        hs.insert(1);
+
+        let mock = MyFindPrefixTestFilterMock::new(hs);
+
+        let mut serialize = Module::new(mock);
+        let buffer = serialize.serialize(TEXT);
+        if let Err(_) = serialize.save_schema_to_file(PATH) {
+            assert!(false);
+        }
+
+        let mut buffers = Vec::new();
+        buffers.push(buffer.clone());
+        buffers.push(vec![11111]);
+
+        let result = serialize.filter_prefixed("Se", buffers);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].clone(), buffer);
     }
 
     #[test]

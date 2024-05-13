@@ -6,4 +6,6 @@
 # db files
 *.db
 
+# development 
 /logs
+/venv
