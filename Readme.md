@@ -1,5 +1,7 @@
 # Scribe
 
+[![Rust](https://github.com/bartossh/scribe/actions/workflows/rust.yml/badge.svg)](https://github.com/bartossh/scribe/actions/workflows/rust.yml)
+
 Yet another logs server, that keeps logs in binary-packed format.
 
 ## Why
