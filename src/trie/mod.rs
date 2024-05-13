@@ -99,7 +99,8 @@ mod tests {
         "oleole",
     ];
 
-    const TEST_WORDS_NOT_PUSH: [&str; 10] = [
+    const TEST_WORDS_NOT_PUSH: [&str; 11] = [
+        "a",
         "abaa",
         "abacusaa",
         "abacusa3",
