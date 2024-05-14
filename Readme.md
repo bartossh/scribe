@@ -20,6 +20,18 @@ Developed with `rustc 1.77.2` and `cargo 1.77.2`.
 cargo test --profile test -- --nocapture --test-threads=1
 ```
 
+### Integration tests
+
+Remember to run the server with default settings:
+
+```sh
+cargo run --release
+```
+
+```sh
+cargo test --profile test --test integration_tests -v -- --nocapture --ignored --test-threads=1
+```
+
 ### Run server
 
 1. Default on addr: `0.0.0.0:8000`

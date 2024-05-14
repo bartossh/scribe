@@ -15,6 +15,7 @@ derive_more = "0.99.17"
 rand = "0.8.5"
 scanf = "1.2.1"
 serde = "1.0.200"
+serde_json = "1.0.117"
 serde_yaml = "0.9.34"
 sqlx = { version = "0.7.4", features = [
     "sqlite",
@@ -22,3 +23,4 @@ sqlx = { version = "0.7.4", features = [
     "runtime-tokio-native-tls",
 ] }
 tokio = { version = "1.37.0", features = ["test-util", "tokio-macros", "full"] }
+ureq = { version = "2.9.7", features = ["json"] }
