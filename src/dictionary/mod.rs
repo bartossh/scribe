@@ -11,6 +11,7 @@ use std::io::{LineWriter, Result as ResultStd, Write};
 pub trait Filter: Send + Sync {
     fn push(&mut self, s: &str, num: u32);
     fn find_prefix(&self, s: &str) -> HashSet<u32>;
+    fn find_prefix_case_insensitive(&self, s: &str) -> HashSet<u32>;
 }
 
 /// Stores Serializer in Self.
@@ -168,6 +169,9 @@ mod tests {
     impl Filter for MyFilterMock {
         fn push(&mut self, s: &str, num: u32) {}
         fn find_prefix(&self, s: &str) -> HashSet<u32> {
+            HashSet::new()
+        }
+        fn find_prefix_case_insensitive(&self, s: &str) -> HashSet<u32> {
             HashSet::new()
         }
     }

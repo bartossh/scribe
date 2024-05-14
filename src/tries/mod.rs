@@ -26,11 +26,7 @@ impl Node {
     pub fn find_match(&self, s: &str) -> Option<u32> {
         let mut curr = self;
         for c in s.chars() {
-            if let Some(node) = curr.nodes.get(&c) {
-                curr = node;
-            } else {
-                return None;
-            }
+            curr = curr.nodes.get(&c)?;
         }
         curr.num
     }
@@ -74,6 +70,38 @@ impl Filter for Node {
         }
         curr.append_inner(&mut nums);
         nums
+    }
+
+    fn find_prefix_case_insensitive(&self, s: &str) -> HashSet<u32> {
+        let mut result = HashSet::new();
+
+        for char in s.chars().enumerate() {
+            let upper = char.1.to_uppercase().next().unwrap();
+            if let Some(node) = self.nodes.get(&upper) {
+                if let Some(num) = node.num {
+                    result.insert(num);
+                }
+                node.find_prefix_case_insensitive(&s[char.0 + 1..])
+                    .iter()
+                    .for_each( |el| { result.insert(*el); });
+            }
+
+            let lower = char.1.to_lowercase().next().unwrap();
+            if let Some(node) = self.nodes.get(&lower) {
+                if let Some(num) = node.num {
+                    result.insert(num);
+                }
+                node.find_prefix_case_insensitive(&s[char.0 + 1..])
+                    .iter()
+                    .for_each( |el| { result.insert(*el); });
+            }
+        }
+
+        if s.is_empty() {
+            self.append_inner(&mut result);
+        }
+
+        result
     }
 }
 
@@ -123,16 +151,13 @@ mod tests {
     #[test]
     fn test_find_match() {
         let mut root = Node::new();
-        for (i, w) in TEST_WORDS_PUSH.iter().enumerate() {
-            root.push(w, i as u32);
-        }
+        TEST_WORDS_PUSH
+            .iter()
+            .enumerate()
+            .for_each(|w| root.push(w.1, w.0 as u32));
 
         for (i, w) in TEST_WORDS_PUSH.iter().enumerate() {
-            if let Some(n) = root.find_match(w) {
-                assert_eq!(n, i as u32);
-            } else {
-                assert!(false);
-            }
+            assert_eq!(root.find_match(w).unwrap(), i as u32);
         }
     }
 
@@ -144,8 +169,7 @@ mod tests {
         }
 
         for (_, w) in TEST_WORDS_NOT_PUSH.iter().enumerate() {
-            let res = root.find_match(w);
-            assert_eq!(res, None);
+            assert!(root.find_match(w).is_none());
         }
     }
 
@@ -256,5 +280,18 @@ mod tests {
             BENCH_WORD_SIZE,
             duration
         );
+    }
+
+    #[test]
+    fn on_find_prefix_should_find_matches_when_case_insensitive() {
+        let mut root = Node::new();
+        vec![("ALA", 0), ("noise", 1), ("ala", 2), ("Ala", 3), ("Abba", 4), ("Aaala", 5)]
+            .iter()
+            .for_each(|el| root.push(el.0, el.1));
+        let expected = HashSet::from_iter([0, 2, 3]);
+
+        let actual = root.find_prefix_case_insensitive("al");
+
+        assert_eq!(expected, actual);
     }
 }
