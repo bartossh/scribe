@@ -330,12 +330,12 @@ fn on_read_log_api_call_match_word_prefix_should_respond_with_messages_when_logs
         .unwrap_or_default();
     for l in vec![
         "This log is super funny should found",
-        "This log is supper fun should found",
-        "This log is supper fan",
-        "This log is supper fantastic",
-        "This log is supper fonetic",
-        "This log is supper fixed",
-        "This log is supper fu should found",
+        "This log is super fun should found",
+        "This log is super fan",
+        "This log is super fantastic",
+        "This log is super fonetic",
+        "This log is super fixed",
+        "This log is super fu should found",
     ] {
         let status = ureq::post(&path)
             .set("Content-Type", "application/json")
@@ -401,12 +401,12 @@ fn on_read_log_api_call_match_word_prefix_should_respond_with_empty_response_whe
         .unwrap_or_default();
     for l in vec![
         "This log is super funny should found",
-        "This log is supper fun should found",
-        "This log is supper fan",
-        "This log is supper fantastic",
-        "This log is supper fonetic",
-        "This log is supper fixed",
-        "This log is supper fu should found",
+        "This log is super fun should found",
+        "This log is super fan",
+        "This log is super fantastic",
+        "This log is super fonetic",
+        "This log is super fixed",
+        "This log is super fu should found",
     ] {
         let status = ureq::post(&path)
             .set("Content-Type", "application/json")
@@ -462,12 +462,12 @@ fn on_read_log_api_call_match_time_should_find_all_in_time_range() -> Result<()>
         .unwrap_or_default();
     for l in vec![
         "This log is super funny should found",
-        "This log is supper fun should found",
-        "This log is supper fan should found",
-        "This log is supper fantastic should found",
-        "This log is supper fonetic should found",
-        "This log is supper fixed should found",
-        "This log is supper fu should found",
+        "This log is super fun should found",
+        "This log is super fan should found",
+        "This log is super fantastic should found",
+        "This log is super fonetic should found",
+        "This log is super fixed should found",
+        "This log is super fu should found",
     ] {
         let status = ureq::post(&path)
             .set("Content-Type", "application/json")
@@ -538,12 +538,12 @@ fn on_read_log_api_call_match_should_return_empty_result_for_time_rang_with_no_m
     sleep(Duration::from_millis(10));
     for l in vec![
         "This log is super funny",
-        "This log is supper fun",
-        "This log is supper fan",
-        "This log is supper fantastic",
-        "This log is supper fonetic",
-        "This log is supper fixed",
-        "This log is supper fu",
+        "This log is super fun",
+        "This log is super fan",
+        "This log is super fantastic",
+        "This log is super fonetic",
+        "This log is super fixed",
+        "This log is super fu",
     ] {
         let status = ureq::post(&path)
             .set("Content-Type", "application/json")
