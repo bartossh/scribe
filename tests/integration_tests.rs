@@ -9,6 +9,8 @@ use std::io::Result;
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 use ureq;
 
 const WAIT_MS: u64 = 5;
@@ -25,6 +27,11 @@ struct Query {
     words: Option<Vec<String>>,
     from: u64,
     to: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct LogsOutput {
+    logs: Vec<String>,
 }
 
 fn file_read_helper() -> Result<Vec<String>> {
@@ -51,7 +58,7 @@ fn mix_and_merge(rng: &mut ThreadRng, rounds: usize, data: &[String]) -> String 
 
 #[test]
 #[ignore]
-fn create_log() -> Result<()> {
+fn integration_bench_create_log() -> Result<()> {
     let path = "http://0.0.0.0:8000/save";
 
     let mut rng = rand::thread_rng();
@@ -86,13 +93,15 @@ fn create_log() -> Result<()> {
 }
 #[test]
 #[ignore]
-fn read_log() -> Result<()> {
+fn integration_bench_read_log() -> Result<()> {
     let path = "http://0.0.0.0:8000/save";
 
     let mut rng = rand::thread_rng();
     let logs = file_read_helper()?;
 
-    let begin = Instant::now();
+    let time_from = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     for _ in 0..ROUNDS {
         let log = mix_and_merge(&mut rng, 5, &logs);
         let status = ureq::post(&path)
@@ -108,8 +117,9 @@ fn read_log() -> Result<()> {
         sleep(Duration::from_millis(WAIT_MS));
     }
 
-    let from = begin.elapsed();
-    let to = Instant::now().elapsed();
+    let time_to = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
 
     sleep(Duration::from_millis(100));
 
@@ -127,8 +137,8 @@ fn read_log() -> Result<()> {
                     "focusing".to_string(),
                     "stop".to_string(),
                 ]),
-                from: from.as_nanos() as u64,
-                to: to.as_nanos() as u64,
+                from: time_from.as_nanos() as u64,
+                to: time_to.as_nanos() as u64,
             });
         match status {
             Ok(resp) => assert_eq!(resp.status(), 200),
