@@ -60,13 +60,13 @@ impl Filter for Node {
         let mut nums = HashSet::new();
         for c in s.chars() {
             if let Some(node) = curr.nodes.get(&c) {
-                if let Some(num) = node.num {
-                    nums.insert(num);
-                }
                 curr = node;
             } else {
                 return nums;
             }
+        }
+        if let Some(num) = curr.num {
+            nums.insert(num);
         }
         curr.append_inner(&mut nums);
         nums
@@ -127,7 +127,8 @@ mod tests {
         "oleole",
     ];
 
-    const TEST_WORDS_NOT_PUSH: [&str; 10] = [
+    const TEST_WORDS_NOT_PUSH: [&str; 11] = [
+        "a",
         "abaa",
         "abacusaa",
         "abacusa3",

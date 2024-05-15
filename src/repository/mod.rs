@@ -1,6 +1,6 @@
 mod migrations;
 use crate::dictionary::{Module, SerializerReader, SerializerSaver};
-use crate::tries::Node;
+use crate::trie::Node;
 use sqlx::{sqlite::SqlitePool, Error, FromRow};
 use std::{
     collections::HashMap,

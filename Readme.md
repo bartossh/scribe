@@ -1,5 +1,7 @@
 # Scribe
 
+[![Rust](https://github.com/bartossh/scribe/actions/workflows/rust.yml/badge.svg)](https://github.com/bartossh/scribe/actions/workflows/rust.yml)
+
 Yet another logs server, that keeps logs in binary-packed format.
 
 ## Why
@@ -20,6 +22,14 @@ cargo test --profile test -- --nocapture --test-threads=1
 
 ### Run server
 
+1. Default on addr: `0.0.0.0:8000`
+
 ```sh
 cargo run --release 
+```
+
+2. With `setup.yaml` file path as the argument. The file contains the setup parameters. Look in to `default.yaml` for a reference.
+
+```sh
+cargo run --release setup.yaml
 ```
