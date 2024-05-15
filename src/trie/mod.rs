@@ -346,9 +346,10 @@ mod tests {
             ("innest", 4),
         ].iter().for_each(|(s, idx)| root.push(s, *idx));
         let mut node = &root;
-        "inn".chars().for_each(|char| node = node.nodes.get(&char).unwrap());
+        for char in "inn".chars() {
+            node = node.nodes.get(&char).unwrap();
+        }
 
-        println!("{:#?}", node);
         let mut actual = HashSet::new();
         node.collect_numbers(&mut actual);
 
