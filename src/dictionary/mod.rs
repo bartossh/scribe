@@ -212,7 +212,7 @@ mod tests {
         fn find_prefix(&self, _: &str) -> HashSet<u32> {
             HashSet::new()
         }
-        fn find_prefix_case_insensitive(&self, s: &str) -> HashSet<u32> {
+        fn find_prefix_case_insensitive(&self, _: &str) -> HashSet<u32> {
             HashSet::new()
         }
     }
@@ -295,6 +295,9 @@ mod tests {
             fn push(&mut self, _: &str, num: u32) {}
             fn find_prefix(&self, _: &str) -> HashSet<u32> {
                 self.h.clone()
+            }
+            fn find_prefix_case_insensitive(&self, _: &str) -> HashSet<u32> {
+                HashSet::new()
             }
         }
 

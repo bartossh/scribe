@@ -59,11 +59,10 @@ impl Filter for Node {
         let mut curr = self;
         let mut nums = HashSet::new();
         for c in s.chars() {
-            if let Some(node) = curr.nodes.get(&c) {
-                curr = node;
-            } else {
+            let Some(node) = curr.nodes.get(&c) else {
                 return nums;
-            }
+            };
+            curr = node;
         }
         if let Some(num) = curr.num {
             nums.insert(num);
@@ -75,25 +74,33 @@ impl Filter for Node {
     fn find_prefix_case_insensitive(&self, s: &str) -> HashSet<u32> {
         let mut result = HashSet::new();
 
-        for char in s.chars().enumerate() {
-            let upper = char.1.to_uppercase().next().unwrap();
+        for (idx, char) in s.chars().enumerate() {
+            let Some(upper) = char.to_uppercase().next() else {
+                return result;
+            };
             if let Some(node) = self.nodes.get(&upper) {
                 if let Some(num) = node.num {
                     result.insert(num);
                 }
-                node.find_prefix_case_insensitive(&s[char.0 + 1..])
+                node.find_prefix_case_insensitive(&s[idx + 1..])
                     .iter()
-                    .for_each( |el| { result.insert(*el); });
+                    .for_each(|el| {
+                        result.insert(*el);
+                    });
             }
 
-            let lower = char.1.to_lowercase().next().unwrap();
+            let Some(lower) = char.to_lowercase().next() else {
+                return result;
+            };
             if let Some(node) = self.nodes.get(&lower) {
                 if let Some(num) = node.num {
                     result.insert(num);
                 }
-                node.find_prefix_case_insensitive(&s[char.0 + 1..])
+                node.find_prefix_case_insensitive(&s[idx + 1..])
                     .iter()
-                    .for_each( |el| { result.insert(*el); });
+                    .for_each(|el| {
+                        result.insert(*el);
+                    });
             }
         }
 
@@ -150,7 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn test_find_match() {
+    fn on_find_match_of_pushed_words_should_find_all_matching_words() {
         let mut root = Node::new();
         TEST_WORDS_PUSH
             .iter()
@@ -163,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn test_not_find_match() {
+    fn on_find_match_of_not_pushed_words_should_find_no_matching_words() {
         let mut root = Node::new();
         for (i, w) in TEST_WORDS_PUSH.iter().enumerate() {
             root.push(w, i as u32);
@@ -175,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn test_find_prefix() {
+    fn on_find_prefix_should_find_all_matching_words_case_sensitive() {
         let mut root = Node::new();
         for (i, w) in TEST_WORDS_PUSH.iter().enumerate() {
             root.push(w, i as u32);
@@ -194,7 +201,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bench_push() {
+    fn bench_push() {
         let mut words = Vec::new();
         for _ in 0..BENCH_LOOP_SIZE {
             words.push(create_random_str(BENCH_WORD_SIZE));
@@ -219,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bench_find_match() {
+    fn bench_find_match() {
         let mut words = Vec::new();
         for _ in 0..BENCH_LOOP_SIZE {
             words.push(create_random_str(BENCH_WORD_SIZE));
@@ -253,7 +260,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bench_find_prefix() {
+    fn bench_find_prefix() {
         let mut words = Vec::new();
         for _ in 0..BENCH_LOOP_SIZE {
             words.push(create_random_str(BENCH_WORD_SIZE));
@@ -286,9 +293,16 @@ mod tests {
     #[test]
     fn on_find_prefix_should_find_matches_when_case_insensitive() {
         let mut root = Node::new();
-        vec![("ALA", 0), ("noise", 1), ("ala", 2), ("Ala", 3), ("Abba", 4), ("Aaala", 5)]
-            .iter()
-            .for_each(|el| root.push(el.0, el.1));
+        vec![
+            ("ALA", 0),
+            ("noise", 1),
+            ("ala", 2),
+            ("Ala", 3),
+            ("Abba", 4),
+            ("Aaala", 5),
+        ]
+        .iter()
+        .for_each(|el| root.push(el.0, el.1));
         let expected = HashSet::from_iter([0, 2, 3]);
 
         let actual = root.find_prefix_case_insensitive("al");
