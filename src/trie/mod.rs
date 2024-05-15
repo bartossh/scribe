@@ -190,6 +190,7 @@ mod tests {
 
         let result = root.find_prefix(TEST_WORDS_PUSH[5]);
 
+        assert_eq!(result.len(), 6);
         for i in result.iter() {
             if *i as usize > TEST_WORDS_PUSH.len() {
                 assert!(false);

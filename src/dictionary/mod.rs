@@ -166,8 +166,8 @@ impl Module {
     #[inline]
     pub fn read_schema_from_file(path: &str, f: impl Filter + 'static) -> ResultStd<Self> {
         let mut serializer = Self::new(f);
-        let mut file = File::open(path)?;
-        let mut reader = BufReader::new(file);
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
 
         for line in reader.lines() {
             let mut n = 0;
