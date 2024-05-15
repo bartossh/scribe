@@ -1,7 +1,9 @@
+pub mod interface;
 mod migrations;
 use crate::dictionary::{Module, SerializerReader, SerializerSaver};
 use crate::trie::Node;
-use sqlx::{sqlite::SqlitePool, Error, FromRow};
+use sqlx::{sqlite::SqlitePool, FromRow};
+use std::io::{Error, ErrorKind, Result};
 use std::{
     collections::HashMap,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -34,27 +36,40 @@ pub struct Warehouse {
 impl Warehouse {
     /// Cerate a new Warehouse connected to SQLite database.
     ///
-    pub async fn new(dbs: DatabaseStorage) -> Result<Self, Error> {
+    pub async fn new(dbs: DatabaseStorage) -> Result<Self> {
         let url = match dbs {
             DatabaseStorage::Ram => "sqlite::memory:".to_string(),
             DatabaseStorage::Path(s) => s,
         };
-        let pool = SqlitePool::connect(&url).await?;
+        let Ok(pool) = SqlitePool::connect(&url).await else {
+            return Err(Error::new(ErrorKind::NotConnected, "connection error"));
+        };
         Ok(Self { pool })
     }
+}
 
-    pub async fn migrate(&mut self) -> Result<(), Error> {
-        let mut conn = self.pool.acquire().await?;
+impl interface::RepositoryProvider for Warehouse {
+    async fn migrate(&mut self) -> Result<()> {
+        let Ok(mut conn) = self.pool.acquire().await else {
+            return Err(Error::new(
+                ErrorKind::ConnectionRefused,
+                "cannot acquire connection",
+            ));
+        };
         for migration in migrations::COMMANDS {
-            sqlx::query(&migration).execute(&mut *conn).await?;
+            let Ok(_) = sqlx::query(&migration).execute(&mut *conn).await else {
+                return Err(Error::new(ErrorKind::NotConnected, "cannot acquire pool"));
+            };
         }
         Ok(())
     }
 
     /// Insert single log data to Warehouse SQLite database.
     ///
-    pub async fn insert_log(&self, input: &[u32]) -> Result<(), Error> {
-        let mut conn = self.pool.acquire().await?;
+    async fn insert_log(&self, input: &[u32]) -> Result<()> {
+        let Ok(mut conn) = self.pool.acquire().await else {
+            return Err(Error::new(ErrorKind::NotConnected, "cannot acquire pool"));
+        };
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -65,29 +80,39 @@ impl Warehouse {
             data.extend(elem.to_ne_bytes().to_vec());
         }
 
-        sqlx::query("INSERT INTO logs (timestamp, data) VALUES (?1, ?2)")
+        let Ok(_) = sqlx::query("INSERT INTO logs (timestamp, data) VALUES (?1, ?2)")
             .bind(timestamp)
             .bind(data)
             .execute(&mut *conn)
-            .await?;
+            .await
+        else {
+            return Err(Error::new(ErrorKind::Interrupted, "cannot execute query"));
+        };
 
         Ok(())
     }
 
     /// Gets data in time span.
     ///  
-    pub async fn get_logs(&self, from: &Duration, to: &Duration) -> Result<Vec<Vec<u32>>, Error> {
-        let mut conn = self.pool.acquire().await?;
-        let rows = sqlx::query("SELECT * FROM logs WHERE timestamp BETWEEN ? AND ?")
+    async fn get_logs(&self, from: &Duration, to: &Duration) -> Result<Vec<Vec<u32>>> {
+        let Ok(mut conn) = self.pool.acquire().await else {
+            return Err(Error::new(ErrorKind::NotConnected, "cannot acquire pool"));
+        };
+        let Ok(rows) = sqlx::query("SELECT * FROM logs WHERE timestamp BETWEEN ? AND ?")
             .bind(from.as_nanos() as i64)
             .bind(to.as_nanos() as i64)
             .fetch_all(&mut *conn)
-            .await?;
+            .await
+        else {
+            return Err(Error::new(ErrorKind::Interrupted, "cannot execute query"));
+        };
 
         let mut data = Vec::new();
         for rec in rows {
             let mut d: Vec<u32> = Vec::new();
-            let log = Log::from_row(&rec)?;
+            let Ok(log) = Log::from_row(&rec) else {
+                return Err(Error::new(ErrorKind::Interrupted, "cannot execute query"));
+            };
             for (i, _) in log.data.iter().enumerate().step_by(4) {
                 d.push(u32::from_ne_bytes([
                     log.data[i],
@@ -102,24 +127,31 @@ impl Warehouse {
         Ok(data)
     }
 
-    pub async fn close(&self) {
+    async fn close(&self) {
         self.pool.close().await;
     }
 }
 
 impl SerializerReader for Warehouse {
     #[inline]
-    async fn read(&self) -> Result<Module, Error> {
-        let mut conn = self.pool.acquire().await?;
+    async fn read(&self) -> Result<Module> {
+        let Ok(mut conn) = self.pool.acquire().await else {
+            return Err(Error::new(ErrorKind::NotConnected, "cannot acquire pool"));
+        };
 
-        let rows = sqlx::query("SELECT * FROM serializer")
+        let Ok(mut rows) = sqlx::query("SELECT * FROM serializer")
             .fetch_all(&mut *conn)
-            .await?;
+            .await
+        else {
+            return Err(Error::new(ErrorKind::Interrupted, "cannot execute query"));
+        };
 
         let mut m: HashMap<String, u32> = HashMap::new();
 
         for rec in rows {
-            let dict: Dict = Dict::from_row(&rec)?;
+            let Ok(dict) = Dict::from_row(&rec) else {
+                return Err(Error::new(ErrorKind::Interrupted, "cannot execute query"));
+            };
             m.insert(dict.word, dict.num as u32);
         }
 
@@ -134,18 +166,31 @@ impl SerializerReader for Warehouse {
 
 impl SerializerSaver for Warehouse {
     #[inline]
-    async fn save(&self, s: &Module) -> Result<(), Error> {
-        let mut transaction = self.pool.begin().await?;
+    async fn save(&self, s: &Module) -> Result<()> {
+        let Ok(mut transaction) = self.pool.begin().await else {
+            return Err(Error::new(
+                ErrorKind::NotConnected,
+                "cannot begin transaction pool",
+            ));
+        };
 
         for (w, n) in s.iter() {
-            sqlx::query("INSERT INTO serializer (word, num) VALUES (?1, ?2)")
+            let Ok(_) = sqlx::query("INSERT INTO serializer (word, num) VALUES (?1, ?2)")
                 .bind(w)
                 .bind(*n as i32)
                 .execute(&mut *transaction)
-                .await?;
+                .await
+            else {
+                return Err(Error::new(
+                    ErrorKind::Interrupted,
+                    "cannot execute transaction",
+                ));
+            };
         }
 
-        transaction.commit().await?;
+        let Ok(_) = transaction.commit().await else {
+            return Err(Error::new(ErrorKind::Interrupted, "cannot execute query"));
+        };
 
         Ok(())
     }
@@ -155,6 +200,7 @@ impl SerializerSaver for Warehouse {
 mod tests {
     use super::*;
     use crate::dictionary::{Module, SerializerReader, SerializerSaver};
+    use interface::RepositoryProvider;
     use std::time::Instant;
 
     const BENCH_LOOP: usize = 1000;

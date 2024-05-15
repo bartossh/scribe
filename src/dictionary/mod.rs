@@ -1,5 +1,4 @@
 use scanf::sscanf;
-use sqlx::Error as ErrorSql;
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::prelude::*;
@@ -17,13 +16,13 @@ pub trait Filter: Send + Sync {
 /// Stores Serializer in Self.
 ///
 pub trait SerializerSaver {
-    async fn save(&self, s: &Module) -> Result<(), ErrorSql>;
+    async fn save(&self, s: &Module) -> ResultStd<()>;
 }
 
 /// Reads stored Serializer in Self.
 ///
 pub trait SerializerReader {
-    async fn read(&self) -> Result<Module, ErrorSql>;
+    async fn read(&self) -> ResultStd<Module>;
 }
 
 /// Serializer serialize the log in to the binary format.
