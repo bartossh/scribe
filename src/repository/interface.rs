@@ -1,7 +1,7 @@
 use std::io::Result;
 use std::time::Duration;
 
-/// RepositoryProvider provides full functionality ot the persistent repository.
+/// RepositoryProvider provides full functionality of the persistent repository.
 ///
 pub trait RepositoryProvider: Send + Sync + Clone {
     async fn migrate(&mut self) -> Result<()>;
