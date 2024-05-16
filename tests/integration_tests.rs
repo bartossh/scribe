@@ -13,7 +13,7 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use ureq;
 
-const WAIT_MS: u64 = 5;
+const WAIT_MS: u64 = 2;
 const ROUNDS: usize = 1000;
 
 #[derive(Debug, Serialize, Deserialize)]
