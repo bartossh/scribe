@@ -192,12 +192,13 @@ impl Module {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use super::*;
     use std::time::Instant;
 
     const TEXT: &str = "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur";
     const BENCH_LOOP: usize = 10000;
-    const PATH: &str = "./test.schema";
 
     struct MyFilterMock {}
     impl MyFilterMock {
@@ -219,9 +220,10 @@ mod tests {
     #[test]
     fn test_serialize_once() {
         let mock = MyFilterMock::new();
-
         let mut serialize = Module::new(mock);
+
         let buffer = serialize.serialize(TEXT);
+        
         assert!(buffer.len() > 0);
     }
 
@@ -252,35 +254,26 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_save_read() {
-        let mock = MyFilterMock::new();
+    fn test_serialize_save_read() -> Result<(), Box<dyn Error>> {
+        let path = "./save_read.schema";
+        let expected = Module::new(MyFilterMock::new());
+        expected.save_schema_to_file(path)?;
 
-        let mut serialize = Module::new(mock);
-        let buffer = serialize.serialize(TEXT);
-        if let Err(_) = serialize.save_schema_to_file(PATH) {
-            assert!(false);
-        }
-        let mock1 = MyFilterMock::new();
-        let Ok(new_serializer) = Module::read_schema_from_file(PATH, mock1) else {
-            assert!(false);
-            return;
-        };
+        let actual = Module::read_schema_from_file(path, MyFilterMock::new())?;
 
+        let result = expected.words_to_numbers.iter()
+            .all(|(k, v)| *v == *actual.words_to_numbers.get(k).unwrap());
+        assert!(result);
         assert_eq!(
-            serialize.last_available_number,
-            new_serializer.last_available_number
+            expected.last_available_number,
+            actual.last_available_number
         );
-
-        for (k, v) in serialize.words_to_numbers.iter() {
-            match new_serializer.words_to_numbers.get(k) {
-                Some(n_v) => assert_eq!(*v, *n_v),
-                None => assert!(false),
-            };
-        }
+        Ok(())
     }
 
     #[test]
     fn test_find_prefixes() {
+        let path = "./test.schema";
         struct MyFindPrefixTestFilterMock {
             h: HashSet<u32>,
         }
@@ -307,7 +300,7 @@ mod tests {
 
         let mut serialize = Module::new(mock);
         let buffer = serialize.serialize(TEXT);
-        if let Err(_) = serialize.save_schema_to_file(PATH) {
+        if let Err(_) = serialize.save_schema_to_file(path) {
             assert!(false);
         }
 
