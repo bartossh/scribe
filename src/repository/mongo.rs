@@ -233,6 +233,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn on_insert_should_insert_data_in_to_database() {
         let Ok(warehouse) = WarehouseMongo::new(CONNECTION_STR_TEST).await else {
             assert!(false);
@@ -253,6 +254,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn on_insert_should_insert_data_in_to_database_and_read_the_data_with_proper_decoding() {
         let Ok(warehouse) = WarehouseMongo::new(CONNECTION_STR_TEST).await else {
             assert!(false);
@@ -288,6 +290,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn bench_insert_to_mongo() {
         let Ok(warehouse) = WarehouseMongo::new(CONNECTION_STR_TEST).await else {
             assert!(false);
@@ -319,6 +322,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn bench_find_in_mongo() {
         let Ok(warehouse) = WarehouseMongo::new(CONNECTION_STR_TEST).await else {
             assert!(false);
