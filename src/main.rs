@@ -5,6 +5,7 @@ mod trie;
 
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 use repository::interface::RepositoryProvider;
+use repository::sql::{DatabaseStorage, Warehouse};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::sync::{Arc, RwLock};
@@ -61,7 +62,7 @@ where
 
 #[inline(always)]
 #[get("/version")]
-async fn version(state: Data<ServerActor<repository::Warehouse>>) -> Result<impl Responder> {
+async fn version(state: Data<ServerActor<Warehouse>>) -> Result<impl Responder> {
     let v = Version {
         version: state.version.to_string(),
     };
@@ -72,7 +73,7 @@ async fn version(state: Data<ServerActor<repository::Warehouse>>) -> Result<impl
 #[post("/save")]
 async fn save_log(
     input: Json<LogInput>,
-    state: Data<ServerActor<repository::Warehouse>>,
+    state: Data<ServerActor<Warehouse>>,
 ) -> Result<impl Responder> {
     let Ok(mut dict) = state.dict.write() else {
         return Err(error::ErrorInternalServerError(
@@ -91,7 +92,7 @@ async fn save_log(
 #[post("/read")]
 async fn read_logs(
     input: Json<Query>,
-    state: Data<ServerActor<repository::Warehouse>>,
+    state: Data<ServerActor<Warehouse>>,
 ) -> Result<impl Responder> {
     let from = Duration::from_nanos(input.from);
     let to = Duration::from_nanos(input.to);
@@ -129,7 +130,7 @@ async fn main() -> std::io::Result<()> {
         _ => settings::Setup::from_file(&args[1])?,
     };
 
-    let Ok(mut repo) = repository::Warehouse::new(repository::DatabaseStorage::Ram).await else {
+    let Ok(mut repo) = Warehouse::new(DatabaseStorage::Ram).await else {
         return Err(std::io::Error::new::<String>(
             std::io::ErrorKind::NotConnected,
             "repository is not responding".to_string(),
