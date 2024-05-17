@@ -96,7 +96,7 @@ async fn read_logs(
 ) -> Result<impl Responder> {
     let from = Duration::from_nanos(input.from);
     let to = Duration::from_nanos(input.to);
-    let Ok(mut logs) = state.repo.get_logs(&from, &to).await else {
+    let Ok(mut logs) = state.repo.find_logs(&from, &to).await else {
         return Err(error::ErrorInternalServerError("Database not responding."));
     };
 

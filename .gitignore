@@ -9,3 +9,6 @@
 # development 
 /logs
 /venv
+
+# env
+.env

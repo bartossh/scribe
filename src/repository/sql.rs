@@ -1,7 +1,8 @@
 use super::commands::SQL_COMMANDS;
-use super::entities::{Dict, Log};
+use super::entities::{DictSql, LogSql};
 use super::interface::RepositoryProvider;
-use crate::dictionary::{Module, SerializerReader, SerializerSaver};
+use super::interface::{SerializerReader, SerializerSaver};
+use crate::dictionary::Module;
 use crate::trie::Node;
 use sqlx::{sqlite::SqlitePool, FromRow};
 use std::io::{Error, ErrorKind, Result};
@@ -39,7 +40,7 @@ impl WarehouseSql {
 }
 
 impl RepositoryProvider for WarehouseSql {
-    async fn migrate(&mut self) -> Result<()> {
+    async fn migrate(&self) -> Result<()> {
         let Ok(mut conn) = self.pool.acquire().await else {
             return Err(Error::new(
                 ErrorKind::ConnectionRefused,
@@ -84,7 +85,7 @@ impl RepositoryProvider for WarehouseSql {
 
     /// Gets data in time span.
     ///  
-    async fn get_logs(&self, from: &Duration, to: &Duration) -> Result<Vec<Vec<u32>>> {
+    async fn find_logs(&self, from: &Duration, to: &Duration) -> Result<Vec<Vec<u32>>> {
         let Ok(mut conn) = self.pool.acquire().await else {
             return Err(Error::new(ErrorKind::NotConnected, "cannot acquire pool"));
         };
@@ -100,7 +101,7 @@ impl RepositoryProvider for WarehouseSql {
         let mut data = Vec::new();
         for rec in rows {
             let mut d: Vec<u32> = Vec::new();
-            let Ok(log) = Log::from_row(&rec) else {
+            let Ok(log) = LogSql::from_row(&rec) else {
                 return Err(Error::new(ErrorKind::Interrupted, "cannot execute query"));
             };
             for (i, _) in log.data.iter().enumerate().step_by(4) {
@@ -139,7 +140,7 @@ impl SerializerReader for WarehouseSql {
         let mut m: HashMap<String, u32> = HashMap::new();
 
         for rec in rows {
-            let Ok(dict) = Dict::from_row(&rec) else {
+            let Ok(dict) = DictSql::from_row(&rec) else {
                 return Err(Error::new(ErrorKind::Interrupted, "cannot execute query"));
             };
             m.insert(dict.word, dict.num as u32);
@@ -188,11 +189,13 @@ impl SerializerSaver for WarehouseSql {
 
 #[cfg(test)]
 mod tests {
+    use super::super::interface::{SerializerReader, SerializerSaver};
     use super::*;
-    use crate::dictionary::{Module, SerializerReader, SerializerSaver};
+    use crate::dictionary::Module;
     use std::time::Instant;
 
     const BENCH_LOOP: usize = 1000;
+    const INSERTS: usize = 100;
 
     fn get_data() -> Vec<u32> {
         vec![
@@ -262,7 +265,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_insert_and_get() {
+    async fn on_insert_should_insert_data_in_to_database_and_read_the_data_without_side_effects() {
         let data: Vec<u32> = get_data();
 
         let Ok(mut warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
@@ -277,7 +280,7 @@ mod tests {
             return;
         };
 
-        for _ in 0..10 {
+        for _ in 0..INSERTS * 2 {
             let Ok(()) = warehouse.insert_log(&data).await else {
                 println!("Cannot insert logs into warehouse.");
                 assert!(false);
@@ -289,7 +292,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default();
 
-        let num_inserted_on_time = 25;
+        let num_inserted_on_time = INSERTS;
         for _ in 0..num_inserted_on_time {
             let Ok(()) = warehouse.insert_log(&data).await else {
                 println!("Cannot insert logs into warehouse.");
@@ -302,22 +305,22 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default();
 
-        let Ok(result) = warehouse.get_logs(&time_0, &time_1).await else {
+        let Ok(result) = warehouse.find_logs(&time_0, &time_1).await else {
             println!("Cannot get logs from warehouse.");
             assert!(false);
             return;
         };
 
-        assert_eq!(data, result[0]);
         assert_eq!(result.len(), num_inserted_on_time);
+        assert_eq!(data, result[0]);
 
         warehouse.close().await;
     }
 
     #[tokio::test]
-    async fn test_insert_bench() {
+    async fn bench_insert_sql_ram() {
         let data: Vec<u32> = get_data();
-        let Ok(mut warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
+        let Ok(warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -342,7 +345,7 @@ mod tests {
         let duration = start.elapsed();
 
         println!(
-            "Time elapsed in test_insert_bench is: {:?}",
+            "Time elapsed in bench_insert_sql_ram is: {:?}",
             duration / BENCH_LOOP as u32
         );
 
@@ -350,9 +353,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_bench() {
+    async fn bench_find_sql_ram() {
         let data: Vec<u32> = get_data();
-        let Ok(mut warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
+        let Ok(warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -368,7 +371,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default();
 
-        for _ in 0..100 {
+        for _ in 0..INSERTS {
             let Ok(()) = warehouse.insert_log(&data).await else {
                 println!("Cannot insert logs into warehouse.");
                 assert!(false);
@@ -383,7 +386,7 @@ mod tests {
         let start = Instant::now();
 
         for _ in 0..BENCH_LOOP {
-            let Ok(_) = warehouse.get_logs(&time_0, &time_1).await else {
+            let Ok(_) = warehouse.find_logs(&time_0, &time_1).await else {
                 println!("Cannot get logs from warehouse.");
                 assert!(false);
                 return;
@@ -393,7 +396,7 @@ mod tests {
         let duration = start.elapsed();
 
         println!(
-            "Time elapsed in test_get_bench is: {:?}",
+            "Time elapsed in bench_find_sql_ram is: {:?}",
             duration / BENCH_LOOP as u32
         );
 
