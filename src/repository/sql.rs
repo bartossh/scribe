@@ -1,5 +1,6 @@
+use super::commands::SQL_COMMANDS;
+use super::entities::{Dict, Log};
 use super::interface::RepositoryProvider;
-use super::migrations::COMMANDS;
 use crate::dictionary::{Module, SerializerReader, SerializerSaver};
 use crate::trie::Node;
 use sqlx::{sqlite::SqlitePool, FromRow};
@@ -9,31 +10,20 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-#[derive(FromRow, Debug)]
-struct Dict {
-    word: String,
-    num: i32,
-}
-
-#[derive(FromRow, Debug)]
-struct Log {
-    id: i64,
-    timestamp: i64,
-    data: Vec<u8>,
-}
-
 #[derive(Debug, Clone)]
 pub enum DatabaseStorage {
     Ram,
     Path(String),
 }
 
+/// WarehouseSql serves access to MongoDB repository via facade methods.
+///
 #[derive(Debug, Clone)]
-pub struct Warehouse {
+pub struct WarehouseSql {
     pool: SqlitePool,
 }
 
-impl Warehouse {
+impl WarehouseSql {
     /// Cerate a new Warehouse connected to SQLite database.
     ///
     pub async fn new(dbs: DatabaseStorage) -> Result<Self> {
@@ -48,7 +38,7 @@ impl Warehouse {
     }
 }
 
-impl RepositoryProvider for Warehouse {
+impl RepositoryProvider for WarehouseSql {
     async fn migrate(&mut self) -> Result<()> {
         let Ok(mut conn) = self.pool.acquire().await else {
             return Err(Error::new(
@@ -56,7 +46,7 @@ impl RepositoryProvider for Warehouse {
                 "cannot acquire connection",
             ));
         };
-        for migration in COMMANDS {
+        for migration in SQL_COMMANDS {
             let Ok(_) = sqlx::query(&migration).execute(&mut *conn).await else {
                 return Err(Error::new(ErrorKind::NotConnected, "cannot acquire pool"));
             };
@@ -132,7 +122,7 @@ impl RepositoryProvider for Warehouse {
     }
 }
 
-impl SerializerReader for Warehouse {
+impl SerializerReader for WarehouseSql {
     #[inline]
     async fn read(&self) -> Result<Module> {
         let Ok(mut conn) = self.pool.acquire().await else {
@@ -164,7 +154,7 @@ impl SerializerReader for Warehouse {
     }
 }
 
-impl SerializerSaver for Warehouse {
+impl SerializerSaver for WarehouseSql {
     #[inline]
     async fn save(&self, s: &Module) -> Result<()> {
         let Ok(mut transaction) = self.pool.begin().await else {
@@ -275,7 +265,7 @@ mod tests {
     async fn test_insert_and_get() {
         let data: Vec<u32> = get_data();
 
-        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
+        let Ok(mut warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -327,7 +317,7 @@ mod tests {
     #[tokio::test]
     async fn test_insert_bench() {
         let data: Vec<u32> = get_data();
-        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
+        let Ok(mut warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -362,7 +352,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_bench() {
         let data: Vec<u32> = get_data();
-        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
+        let Ok(mut warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -422,7 +412,7 @@ mod tests {
         let mut s: Module = Module::new(graph);
         s.set_map_from(hm);
 
-        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
+        let Ok(mut warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;
@@ -456,7 +446,7 @@ mod tests {
         let mut s: Module = Module::new(graph);
         s.set_map_from(hm);
 
-        let Ok(mut warehouse) = Warehouse::new(DatabaseStorage::Ram).await else {
+        let Ok(mut warehouse) = WarehouseSql::new(DatabaseStorage::Ram).await else {
             println!("Cannot create warehouse");
             assert!(false);
             return;

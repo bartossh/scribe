@@ -1,4 +1,4 @@
-pub const COMMANDS: [&str; 5] = [
+pub const SQL_COMMANDS: [&str; 5] = [
     r#"
     CREATE TABLE IF NOT EXISTS logs (
       id INTEGER PRIMARY KEY NOT NULL,
