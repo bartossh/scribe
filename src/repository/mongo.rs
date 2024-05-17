@@ -8,8 +8,7 @@ use mongodb::{
     Client, IndexModel,
 };
 use std::io::{Error, ErrorKind, Result};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::sync::watch;
+use std::time::Duration;
 
 const DATABASE_NAME: &str = "scribe";
 const COLLECTION_LOGS: &str = "logs";
@@ -156,9 +155,10 @@ impl RepositoryProvider for WarehouseMongo {
 
 #[cfg(test)]
 mod tests {
-    use super::super::interface::{RepositoryProvider, SerializerReader, SerializerSaver};
+    use super::super::interface::RepositoryProvider;
     use super::*;
     use std::time::Instant;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     const CONNECTION_STR_TEST: &str = "mongodb://scribe:scribe@localhost:27017/";
 

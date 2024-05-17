@@ -7,6 +7,7 @@ use std::net::{IpAddr, Ipv4Addr};
 pub struct Setup {
     ip: IpAddr,
     port: u16,
+    mongo_db: String,
 }
 
 impl Default for Setup {
@@ -14,6 +15,7 @@ impl Default for Setup {
         Self {
             ip: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             port: 8000,
+            mongo_db: "mongodb://scribe:scribe@localhost:27017/".to_string(),
         }
     }
 }
@@ -45,5 +47,9 @@ impl Setup {
 
     pub fn get_port(&self) -> u16 {
         self.port
+    }
+
+    pub fn get_mongo_connection_str(&self) -> String {
+        self.mongo_db.clone()
     }
 }
