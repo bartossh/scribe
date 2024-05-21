@@ -666,6 +666,7 @@ fn integration_bench_read_log() -> Result<()> {
                     "not".to_string(),
                     "focusing".to_string(),
                     "stop".to_string(),
+                    "fail".to_string(),
                 ]),
                 from: time_from.as_nanos() as u64,
                 to: time_to.as_nanos() as u64,
