@@ -13,7 +13,7 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use ureq;
 
-const WAIT_MS: u64 = 5;
+const WAIT_MS: u64 = 2;
 const ROUNDS: usize = 1000;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -666,6 +666,7 @@ fn integration_bench_read_log() -> Result<()> {
                     "not".to_string(),
                     "focusing".to_string(),
                     "stop".to_string(),
+                    "fail".to_string(),
                 ]),
                 from: time_from.as_nanos() as u64,
                 to: time_to.as_nanos() as u64,

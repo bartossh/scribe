@@ -13,18 +13,6 @@ pub trait Filter: Send + Sync {
     fn find_prefix_case_insensitive(&self, s: &str) -> HashSet<u32>;
 }
 
-/// Stores Serializer in Self.
-///
-pub trait SerializerSaver {
-    async fn save(&self, s: &Module) -> ResultStd<()>;
-}
-
-/// Reads stored Serializer in Self.
-///
-pub trait SerializerReader {
-    async fn read(&self) -> ResultStd<Module>;
-}
-
 /// Serializer serialize the log in to the binary format.
 ///
 pub struct Module {
