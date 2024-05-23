@@ -59,7 +59,7 @@ fn mix_and_merge(rng: &mut ThreadRng, rounds: usize, data: &[String]) -> String 
 #[test]
 #[ignore]
 fn on_create_log_api_call_should_respond_with_code_200() -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let status = ureq::post(&path)
         .set("Content-Type", "application/json")
@@ -81,7 +81,7 @@ fn on_create_log_api_call_should_respond_with_code_200() -> Result<()> {
 #[ignore]
 fn on_read_log_api_call_match_words_and_prefix_should_use_multiple_query_params_and_respond_with_logs_matching_all_query_params(
 ) -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let time_from = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -135,7 +135,7 @@ fn on_read_log_api_call_match_words_and_prefix_should_use_multiple_query_params_
         sleep(Duration::from_millis(WAIT_MS));
     }
 
-    let path = "http://0.0.0.0:8000/read";
+    let path = "http://localhost:8000/read";
 
     let status = ureq::post(&path)
         .set("Content-Type", "application/json")
@@ -180,7 +180,7 @@ fn on_read_log_api_call_match_words_and_prefix_should_use_multiple_query_params_
 #[ignore]
 fn on_read_log_api_call_match_existing_word_should_respond_with_previously_added_log_that_match_the_query(
 ) -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let time_from = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -215,7 +215,7 @@ fn on_read_log_api_call_match_existing_word_should_respond_with_previously_added
 
     sleep(Duration::from_millis(100));
 
-    let path = "http://0.0.0.0:8000/read";
+    let path = "http://localhost:8000/read";
 
     let status = ureq::post(&path)
         .set("Content-Type", "application/json")
@@ -258,7 +258,7 @@ fn on_read_log_api_call_match_existing_word_should_respond_with_previously_added
 #[ignore]
 fn on_read_log_api_call_match_existing_word_should_respond_with_empty_message_when_logs_do_not_match(
 ) -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let time_from = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -289,7 +289,7 @@ fn on_read_log_api_call_match_existing_word_should_respond_with_empty_message_wh
 
     sleep(Duration::from_millis(100));
 
-    let path = "http://0.0.0.0:8000/read";
+    let path = "http://localhost:8000/read";
 
     let status = ureq::post(&path)
         .set("Content-Type", "application/json")
@@ -323,7 +323,7 @@ fn on_read_log_api_call_match_existing_word_should_respond_with_empty_message_wh
 #[ignore]
 fn on_read_log_api_call_match_word_prefix_should_respond_with_messages_when_logs_has_matching_prefix(
 ) -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let time_from = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -356,7 +356,7 @@ fn on_read_log_api_call_match_word_prefix_should_respond_with_messages_when_logs
 
     sleep(Duration::from_millis(100));
 
-    let path = "http://0.0.0.0:8000/read";
+    let path = "http://localhost:8000/read";
 
     let status = ureq::post(&path)
         .set("Content-Type", "application/json")
@@ -394,7 +394,7 @@ fn on_read_log_api_call_match_word_prefix_should_respond_with_messages_when_logs
 #[ignore]
 fn on_read_log_api_call_match_word_prefix_should_respond_with_empty_response_when_prefix_is_not_matching(
 ) -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let time_from = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -427,7 +427,7 @@ fn on_read_log_api_call_match_word_prefix_should_respond_with_empty_response_whe
 
     sleep(Duration::from_millis(100));
 
-    let path = "http://0.0.0.0:8000/read";
+    let path = "http://localhost:8000/read";
 
     let status = ureq::post(&path)
         .set("Content-Type", "application/json")
@@ -455,7 +455,7 @@ fn on_read_log_api_call_match_word_prefix_should_respond_with_empty_response_whe
 #[test]
 #[ignore]
 fn on_read_log_api_call_match_time_should_find_all_in_time_range() -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let time_from = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -488,7 +488,7 @@ fn on_read_log_api_call_match_time_should_find_all_in_time_range() -> Result<()>
 
     sleep(Duration::from_millis(100));
 
-    let path = "http://0.0.0.0:8000/read";
+    let path = "http://localhost:8000/read";
 
     let status = ureq::post(&path)
         .set("Content-Type", "application/json")
@@ -526,7 +526,7 @@ fn on_read_log_api_call_match_time_should_find_all_in_time_range() -> Result<()>
 #[ignore]
 fn on_read_log_api_call_match_should_return_empty_result_for_time_rang_with_no_matching_logs(
 ) -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let time_from = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -560,7 +560,7 @@ fn on_read_log_api_call_match_should_return_empty_result_for_time_rang_with_no_m
 
     sleep(Duration::from_millis(100));
 
-    let path = "http://0.0.0.0:8000/read";
+    let path = "http://localhost:8000/read";
 
     let status = ureq::post(&path)
         .set("Content-Type", "application/json")
@@ -588,7 +588,7 @@ fn on_read_log_api_call_match_should_return_empty_result_for_time_rang_with_no_m
 #[test]
 #[ignore]
 fn integration_bench_create_log() -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let mut rng = rand::thread_rng();
     let logs = file_read_helper()?;
@@ -624,7 +624,7 @@ fn integration_bench_create_log() -> Result<()> {
 #[test]
 #[ignore]
 fn integration_bench_read_log() -> Result<()> {
-    let path = "http://0.0.0.0:8000/save";
+    let path = "http://localhost:8000/save";
 
     let mut rng = rand::thread_rng();
     let logs = file_read_helper()?;
@@ -653,7 +653,7 @@ fn integration_bench_read_log() -> Result<()> {
 
     sleep(Duration::from_millis(100));
 
-    let path = "http://0.0.0.0:8000/read";
+    let path = "http://localhost:8000/read";
 
     let start = Instant::now();
     for _ in 0..ROUNDS {
