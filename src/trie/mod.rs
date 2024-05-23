@@ -39,33 +39,6 @@ impl Node {
             next.append_inner(nums);
         }
     }
-
-    fn collect_numbers(&self, numbers: &mut HashSet<u32>) {
-        if let Some(number) = self.num {
-            numbers.insert(number);
-        }
-        
-        let mut nodes : Vec<&Node> = Vec::new();
-        for (_, node) in &self.nodes { 
-            nodes.push(node);
-        }
-
-        while !nodes.is_empty() {
-            let mut temp : Vec<&Node> = Vec::new();
-
-            for element in &nodes {
-                if let Some(number) = element.num { 
-                    numbers.insert(number);
-                }
-
-                for (_, node) in &element.nodes {
-                    temp.push(node);
-                }
-            }
-
-            nodes = temp;
-        }
-    }
 }
 
 impl Filter for Node {
@@ -91,8 +64,11 @@ impl Filter for Node {
             };
             curr = node;
         }
-        
-        curr.collect_numbers(&mut nums);
+        if let Some(num) = curr.num {
+            nums.insert(num);
+        }
+
+        curr.append_inner(&mut nums);
         nums
     }
 
@@ -317,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn on_find_prefix_should_find_matches_when_case_insensitive() {
+    fn on_find_prefix_case_insensitive_should_find_matches_when_case_insensitive() {
         let mut root = Node::new();
         vec![
             ("ALA", 0),
@@ -326,10 +302,12 @@ mod tests {
             ("Ala", 3),
             ("Abba", 4),
             ("Aaala", 5),
+            ("AL", 7),
+            ("al", 8),
         ]
         .iter()
         .for_each(|el| root.push(el.0, el.1));
-        let expected = HashSet::from_iter([0, 2, 3]);
+        let expected = HashSet::from_iter([0, 2, 3, 7, 8]);
 
         let actual = root.find_prefix_case_insensitive("al");
 
@@ -337,23 +315,45 @@ mod tests {
     }
 
     #[test]
-    fn on_collect_numbers_should_retrieve_numbers_from_decendent_nodes() {
+    fn on_find_prefix_should_find_matches_when_case_sensitive() {
         let mut root = Node::new();
         vec![
-            ("inn", 0),
-            ("in", 1),
-            ("inner", 2),
-            ("i", 3),
-            ("innest", 4),
-        ].iter().for_each(|(s, idx)| root.push(s, *idx));
+            ("ALA", 0),
+            ("noise", 1),
+            ("ala", 2),
+            ("Ala", 3),
+            ("Abba", 4),
+            ("Aaala", 5),
+            ("all", 6),
+            ("allocate", 7),
+            ("al", 8),
+        ]
+        .iter()
+        .for_each(|el| root.push(el.0, el.1));
+        let expected = HashSet::from_iter([2, 6, 7, 8]);
+
+        let actual = root.find_prefix("al");
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn on_append_inner_should_retrieve_numbers_from_descendant_nodes() {
+        let mut root = Node::new();
+        vec![("inn", 0), ("in", 1), ("inner", 2), ("i", 3), ("innest", 4)]
+            .iter()
+            .for_each(|(s, idx)| root.push(s, *idx));
         let mut node = &root;
         for char in "inn".chars() {
-            node = node.nodes.get(&char).unwrap();
+            let Some(n) = node.nodes.get(&char) else {
+                return;
+            };
+            node = n
         }
 
         let mut actual = HashSet::new();
-        node.collect_numbers(&mut actual);
+        node.append_inner(&mut actual);
 
-        assert_eq!(HashSet::from_iter([0, 2, 4]), actual);
+        assert_eq!(HashSet::from_iter([2, 4]), actual);
     }
 }
