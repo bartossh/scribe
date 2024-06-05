@@ -1,6 +1,6 @@
 use scanf::sscanf;
 use std::collections::{HashMap, HashSet};
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::{LineWriter, Result as ResultStd, Write};
@@ -211,7 +211,7 @@ mod tests {
         let mut serialize = Module::new(mock);
 
         let buffer = serialize.serialize(TEXT);
-        
+
         assert!(buffer.len() > 0);
     }
 
@@ -249,13 +249,12 @@ mod tests {
 
         let actual = Module::read_schema_from_file(path, MyFilterMock::new())?;
 
-        let result = expected.words_to_numbers.iter()
+        let result = expected
+            .words_to_numbers
+            .iter()
             .all(|(k, v)| *v == *actual.words_to_numbers.get(k).unwrap());
         assert!(result);
-        assert_eq!(
-            expected.last_available_number,
-            actual.last_available_number
-        );
+        assert_eq!(expected.last_available_number, actual.last_available_number);
         Ok(())
     }
 
