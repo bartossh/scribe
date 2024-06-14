@@ -10,6 +10,14 @@ Yet another logs server, that keeps logs in binary-packed format.
 2. To save disc space.
 3. To save on indexing large dictionaries.
 
+## Service options
+
+Scribe at this point can be run in three different repository versions:
+
+1. Permanent MongoDB. Pass mongodb connection string in `url_db` in `default.yaml` file.
+2. Permanent SQLite. Pass sqlite connection string (path to file) in `url_db` in `default.yaml` file.
+3. Ephemeral SQLite stored in RAM. Leave `url_db` in `default.yaml` file empty.
+
 ## Development
 
 Developed with `rustc 1.77.2` and `cargo 1.77.2`.

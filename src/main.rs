@@ -5,7 +5,7 @@ mod trie;
 
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 use repository::interface::RepositoryProvider;
-use repository::mongo::WarehouseMongo;
+use repository::Repository;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::sync::{Arc, RwLock};
@@ -38,19 +38,13 @@ struct Query {
     to: u64,
 }
 
-struct ServerActor<T>
-where
-    T: RepositoryProvider + 'static,
-{
+struct ServerActor {
     version: String,
-    repo: Box<Arc<T>>,
+    repo: Repository,
     dict: Box<Arc<RwLock<dictionary::Module>>>,
 }
 
-impl<T> Clone for ServerActor<T>
-where
-    T: RepositoryProvider + 'static,
-{
+impl Clone for ServerActor {
     fn clone(&self) -> Self {
         Self {
             version: self.version.clone(),
@@ -62,7 +56,7 @@ where
 
 #[inline(always)]
 #[get("/version")]
-async fn version(state: Data<ServerActor<WarehouseMongo>>) -> Result<impl Responder> {
+async fn version(state: Data<ServerActor>) -> Result<impl Responder> {
     let v = Version {
         version: state.version.to_string(),
     };
@@ -71,10 +65,7 @@ async fn version(state: Data<ServerActor<WarehouseMongo>>) -> Result<impl Respon
 
 #[inline(always)]
 #[post("/save")]
-async fn save_log(
-    input: Json<LogInput>,
-    state: Data<ServerActor<WarehouseMongo>>,
-) -> Result<impl Responder> {
+async fn save_log(input: Json<LogInput>, state: Data<ServerActor>) -> Result<impl Responder> {
     let Ok(mut dict) = state.dict.write() else {
         return Err(error::ErrorInternalServerError(
             "Dictionary is not responding.",
@@ -90,10 +81,7 @@ async fn save_log(
 
 #[inline(always)]
 #[post("/read")]
-async fn read_logs(
-    input: Json<Query>,
-    state: Data<ServerActor<WarehouseMongo>>,
-) -> Result<impl Responder> {
+async fn read_logs(input: Json<Query>, state: Data<ServerActor>) -> Result<impl Responder> {
     let from = Duration::from_nanos(input.from);
     let to = Duration::from_nanos(input.to);
     let Ok(mut logs) = state.repo.find_logs(&from, &to).await else {
@@ -130,7 +118,7 @@ async fn main() -> std::io::Result<()> {
         _ => settings::Setup::from_file(&args[1])?,
     };
 
-    let Ok(repo) = WarehouseMongo::new(&setup.get_mongo_connection_str()).await else {
+    let Ok(repo) = Repository::new(&setup).await else {
         return Err(std::io::Error::new::<String>(
             std::io::ErrorKind::NotConnected,
             "repository is not responding".to_string(),
@@ -143,8 +131,6 @@ async fn main() -> std::io::Result<()> {
             e.to_string(),
         ));
     };
-
-    let repo = Box::new(Arc::new(repo));
 
     let service = ServerActor {
         version: VERSION.to_string(),
